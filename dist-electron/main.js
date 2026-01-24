@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import puppeteer from 'puppeteer';
-import { handleAutoLogin, handleAutoChange } from './service.js';
+import { handleAutoLogin, handleAutoChangePassword, } from './service.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const IX_API_BASE = 'http://127.0.0.1:53200';
@@ -70,7 +70,9 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                     await handleAutoLogin(page, profile);
                 }
                 if (data.isAutoChange) {
-                    await handleAutoChange(page, profile);
+                    // await handleAutoChangePhone(page, profile);
+                    // await handleAutoChangeEmail(page, profile);
+                    await handleAutoChangePassword(page, profile);
                 }
                 // Đợi một chút để xem kết quả trước khi đóng
                 console.log(`Hoàn thành thao tác cho profile: ${profile.name}`);

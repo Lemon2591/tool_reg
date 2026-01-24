@@ -3,7 +3,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import puppeteer from 'puppeteer';
-import { handleAutoLogin, handleAutoChange, delay } from './service.js';
+import {
+  handleAutoLogin,
+  handleAutoChangePhone,
+  handleAutoChangeEmail,
+  handleAutoChangePassword,
+  delay,
+} from './service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,7 +91,9 @@ ipcMain.handle('launch-profile', async (_event, data) => {
         }
 
         if (data.isAutoChange) {
-          await handleAutoChange(page, profile);
+          // await handleAutoChangePhone(page, profile);
+          // await handleAutoChangeEmail(page, profile);
+          await handleAutoChangePassword(page, profile);
         }
         // Đợi một chút để xem kết quả trước khi đóng
         console.log(`Hoàn thành thao tác cho profile: ${profile.name}`);

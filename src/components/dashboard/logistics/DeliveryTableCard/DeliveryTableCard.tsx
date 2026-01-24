@@ -96,7 +96,7 @@ const handleOpenBrowser = async (record?: any) => {
     // 2. Chuẩn bị dữ liệu gửi sang Electron
     const payload = {
       isAutoLogin: true,
-      isAutoChange: false,
+      isAutoChange: true,
     };
 
     message.loading('Đang khởi tạo trình duyệt...', 0);
