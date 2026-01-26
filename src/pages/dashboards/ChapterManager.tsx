@@ -39,7 +39,7 @@ import { DASHBOARD_ITEMS } from '../../constants';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useStylesContext } from '../../context';
-import { createElement, CSSProperties, useState } from 'react';
+import { createElement, CSSProperties, useEffect, useState } from 'react';
 import { useFetchData } from '../../hooks';
 import { blue, green, red, yellow } from '@ant-design/colors';
 import CountUp from 'react-countup';
@@ -473,10 +473,10 @@ export const EcommerceDashboardPage = () => {
         title={'Tạo hóa đơn'}
       />
       <Helmet>
-        <title>Quản lý chương</title>
+        <title>Thanh toán</title>
       </Helmet>
       <PageHeader
-        title="Quản lý chương"
+        title="Thanh toán"
         breadcrumbs={[
           {
             title: (
@@ -493,7 +493,7 @@ export const EcommerceDashboardPage = () => {
             },
           },
           {
-            title: 'Quản lý chương',
+            title: 'Thanh toán',
           },
         ]}
       />

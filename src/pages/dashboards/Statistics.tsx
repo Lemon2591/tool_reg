@@ -15,11 +15,6 @@ import { DeliveryTableCard } from '../../components';
 
 export const MarketingDashboardPage = () => {
   const stylesContext = useStylesContext();
-  const {
-    data: trucksDeliveryData,
-    loading: trucksDeliveryDataLoading,
-    error: trucksDeliveryDataError,
-  } = useFetchData('../mocks/TruckDeliveries.json');
 
   return (
     <div>
@@ -51,7 +46,7 @@ export const MarketingDashboardPage = () => {
       <Row {...stylesContext?.rowProps}>
         <Col xs={24} sm={12} lg={6}>
           <MarketingStatsCard
-            title="Tổng số lượt xem toàn trang"
+            title="Tổng số lượt đã chạy"
             value={529148819}
             style={{ height: '100%' }}
             typePage={'view'}
@@ -60,7 +55,7 @@ export const MarketingDashboardPage = () => {
         <Col xs={24} sm={12} lg={6}>
           <MarketingStatsCard
             data={[337, 274, 497, 81]}
-            title="Tổng số truyện"
+            title="Tổng lượt tự động đăng nhập"
             value={2240}
             style={{ height: '100%' }}
             typePage={'stories'}
@@ -69,7 +64,7 @@ export const MarketingDashboardPage = () => {
         <Col xs={24} sm={12} lg={6}>
           <MarketingStatsCard
             data={[337, 274, 497, 81]}
-            title="Tổng số thể loại"
+            title="Tổng số lượt thay thông tin"
             value={100}
             style={{ height: '100%' }}
             typePage={'category'}
@@ -77,25 +72,20 @@ export const MarketingDashboardPage = () => {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <MarketingStatsCard
-            title="Tổng người dùng"
+            title="Tổng số lượt lỗi"
             diff={6.3}
             value={0}
             style={{ height: '100%' }}
           />
         </Col>
-        <Col span={24}>
-          <VisitorsChartCard />
-        </Col>
-        <Col span={24}>
-          <DeliveryTableCard
-            title={'Trạng thái dữ liệu'}
-            data={trucksDeliveryData}
-            error={trucksDeliveryDataError}
-            loading={trucksDeliveryDataLoading}
-            isChapter={false}
-          />
-        </Col>
       </Row>
+      <div style={{ marginTop: 20 }}>
+        <Row {...stylesContext?.rowProps}>
+          <Col span={24} style={{ flex: 1 }}>
+            <VisitorsChartCard />
+          </Col>
+        </Row>
+      </div>
     </div>
   );
 };

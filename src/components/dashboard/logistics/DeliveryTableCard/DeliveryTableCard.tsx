@@ -4,13 +4,11 @@ import {
   CardProps,
   Table,
   TableProps,
-  Progress,
   ProgressProps,
   Space,
   Tooltip,
   Modal,
   Tag,
-  message,
 } from 'antd';
 import { TruckDelivery } from '../../../../types';
 import { ReactNode, useState } from 'react';
@@ -19,9 +17,7 @@ import { Card } from '../../../index.ts';
 import {
   PicCenterOutlined,
   CloseCircleOutlined,
-  CloudUploadOutlined,
   EditOutlined,
-  ExportOutlined,
   PlusOutlined,
 } from '@ant-design/icons';
 
@@ -86,36 +82,6 @@ const TAB_LIST: TabList = [
   },
 ];
 
-const handleOpenBrowser = async (record?: any) => {
-  try {
-    // 1. Tách chuỗi Proxy (host:port:user:pass)
-    const proxyRaw =
-      'res-v2.pr.plainproxies.com:8080:AxHMrB8zQokzvshr-country-US-session-447349-ttl-2592000:lU6YD3kSww6S';
-    const p = proxyRaw.split(':');
-
-    // 2. Chuẩn bị dữ liệu gửi sang Electron
-    const payload = {
-      isAutoLogin: true,
-      isAutoChange: true,
-    };
-
-    message.loading('Đang khởi tạo trình duyệt...', 0);
-
-    // 3. Gọi lệnh thông qua cầu nối IPC
-    const result = await (window as any).electronAPI.openBrowser(payload);
-
-    message.destroy();
-    if (result.success) {
-      message.success('Đã mở trình duyệt thành công!');
-    } else {
-      message.error('Lỗi: ' + result.error);
-    }
-  } catch (error) {
-    console.log(error);
-    message.error('Dữ liệu không hợp lệ!');
-  }
-};
-
 const DELIVERY_TABLE_COLUMNS: ColumnsType<TruckDelivery> = [
   {
     title: 'Mã truyện',
@@ -177,7 +143,7 @@ const DELIVERY_TABLE_COLUMNS: ColumnsType<TruckDelivery> = [
       return (
         <Space>
           <Tooltip title="Xem chi tiết">
-            <Button onClick={() => handleOpenBrowser()}>
+            <Button>
               <EditOutlined />
             </Button>
           </Tooltip>
@@ -228,11 +194,20 @@ const ControlTableReceipt = ({
 };
 
 const DeliveryTable = ({ data, ...others }: DeliveryTableProps) => {
+  const dataWithKey = (data || []).map((item: any, idx) => ({
+    ...item,
+    __rowId:
+      item?.receipt_code || item?.tracking_number || item?.id
+        ? `${item.receipt_code || item.tracking_number || item.id}-${idx}`
+        : `row-${idx}`,
+  }));
+
   return (
     <Table
-      dataSource={data || []}
+      dataSource={dataWithKey}
       columns={DELIVERY_TABLE_COLUMNS}
       className="overflow-scroll"
+      rowKey="__rowId"
       {...others}
     />
   );

@@ -9,7 +9,6 @@ import {
   WelcomePage,
 } from '../../pages';
 import React, { useEffect } from 'react';
-import { PageWrapper } from '../pageWrapper';
 
 // Custom scroll restoration function
 export const ScrollToTop: React.FC = () => {

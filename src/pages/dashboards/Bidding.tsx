@@ -47,10 +47,10 @@ export const BiddingDashboardPage = () => {
   return (
     <div>
       <Helmet>
-        <title>Thể loại</title>
+        <title>Cài đặt</title>
       </Helmet>
       <PageHeader
-        title="Thể loại"
+        title="Cài đặt"
         breadcrumbs={[
           {
             title: (
@@ -67,16 +67,16 @@ export const BiddingDashboardPage = () => {
             },
           },
           {
-            title: 'Thể loại',
+            title: 'Cài đặt',
           },
         ]}
       />
       <Row {...ROW_PROPS}>
         <Col xs={24} md={24}>
-          <Typography.Title level={4}>Thể loại</Typography.Title>
+          <Typography.Title level={4}>Cài đặt</Typography.Title>
           <Row {...ROW_PROPS}>
             <Col md={12} xl={8}>
-              <Card title="Tổng số thể loại">
+              <Card title="Tổng số Cài đặt">
                 <Flex vertical gap="middle">
                   <Typography.Title level={2}>
                     {typeof value === 'number' ? (

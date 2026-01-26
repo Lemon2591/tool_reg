@@ -29,9 +29,9 @@ import {
 
 const DASHBOARD_ITEMS = [
   { title: 'Thống kê', path: PATH_DASHBOARD.statistic },
-  { title: 'Quản lý truyện', path: PATH_DASHBOARD.stories },
-  { title: 'Quản lý chương', path: PATH_DASHBOARD.chapters },
-  { title: 'Quản lý thể loại', path: PATH_DASHBOARD.categories },
+  { title: 'Bảng điều khiển', path: PATH_DASHBOARD.stories },
+  { title: 'Thanh toán', path: PATH_DASHBOARD.chapters },
+  { title: 'Cài đặt', path: PATH_DASHBOARD.categories },
 
   // { title: 'marketing', path: PATH_DASHBOARD.marketing },
   // { title: 'social', path: PATH_DASHBOARD.social },

@@ -68,15 +68,7 @@ export const StatsCard = ({
           )}
         </Row>
         <Flex align="center">
-          <Tag color={'green'}>
-            {typePage === 'view'
-              ? 'Lượt xem'
-              : typePage === 'stories'
-                ? 'Truyện'
-                : typePage === 'category'
-                  ? 'Thể loại'
-                  : 'Đang phát triển'}
-          </Tag>
+          <Tag color={'green'}>Lượt chạy</Tag>
         </Flex>
       </Flex>
     </Card>

@@ -57,17 +57,17 @@ const items: MenuProps['items'] = [
       null
     ),
     getItem(
-      <Link to={PATH_DASHBOARD.stories}>Quản lý truyện</Link>,
+      <Link to={PATH_DASHBOARD.stories}>Bảng điều khiển</Link>,
       'stories',
       null
     ),
     getItem(
-      <Link to={PATH_DASHBOARD.chapters}>Quản lý chương</Link>,
+      <Link to={PATH_DASHBOARD.chapters}>Thanh toán</Link>,
       'chapters',
       null
     ),
     getItem(
-      <Link to={PATH_DASHBOARD.categories}>Quản lý thể loại</Link>,
+      <Link to={PATH_DASHBOARD.categories}>Cài đặt</Link>,
       'categories',
       null
     ),
@@ -84,7 +84,7 @@ const SideNav = ({ ...others }: SideNavProps) => {
   const [current, setCurrent] = useState('');
 
   const onClick: MenuProps['onClick'] = (e) => {
-    console.log('click ', e);
+    // console.log('click ', e);
   };
 
   const onOpenChange: MenuProps['onOpenChange'] = (keys) => {

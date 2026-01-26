@@ -7,11 +7,7 @@ import {
   theme,
   Tooltip,
 } from 'antd';
-import {
-  CSSTransition,
-  SwitchTransition,
-  TransitionGroup,
-} from 'react-transition-group';
+// Removed transition-group wrappers to avoid remount double renders
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -65,7 +61,7 @@ export const GuestLayout = () => {
 
   return (
     <>
-      <NProgress isAnimating={isLoading} key={location.key} />
+      <NProgress isAnimating={isLoading} />
       <Layout
         className="layout"
         style={{
@@ -137,33 +133,13 @@ export const GuestLayout = () => {
             paddingBottom: '10rem',
           }}
         >
-          <TransitionGroup>
-            <SwitchTransition>
-              <CSSTransition
-                key={`css-transition-${location.key}`}
-                nodeRef={nodeRef}
-                onEnter={() => {
-                  setIsLoading(true);
-                }}
-                onEntered={() => {
-                  setIsLoading(false);
-                }}
-                timeout={300}
-                classNames="page"
-                unmountOnExit
-              >
-                {() => (
-                  <div
-                    ref={nodeRef}
-                    className="site-layout-content"
-                    style={{ background: 'none' }}
-                  >
-                    <Outlet />
-                  </div>
-                )}
-              </CSSTransition>
-            </SwitchTransition>
-          </TransitionGroup>
+          <div
+            ref={nodeRef}
+            className="site-layout-content"
+            style={{ background: 'none' }}
+          >
+            <Outlet />
+          </div>
           <FloatButton.BackTop />
         </Content>
         <Footer
@@ -182,11 +158,6 @@ export const GuestLayout = () => {
             <Link to={PATH_DOCS.productRoadmap} target="_blank">
               <Button icon={<ProductOutlined />} type="link">
                 Roadmap
-              </Button>
-            </Link>
-            <Link to={PATH_DASHBOARD.default}>
-              <Button icon={<LoginOutlined />} type="text">
-                Live Preview
               </Button>
             </Link>
             <Link to={PATH_DOCS.components} target="_blank">

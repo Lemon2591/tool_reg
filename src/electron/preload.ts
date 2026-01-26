@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld('electron', {
 contextBridge.exposeInMainWorld('electronAPI', {
   // Định nghĩa hàm openBrowser để React gọi
   openBrowser: (data: any) => ipcRenderer.invoke('launch-profile', data),
+  getProfileList: (params: { page: number | string; limit: number | string }) =>
+    ipcRenderer.invoke('get-profile-list', params),
 });

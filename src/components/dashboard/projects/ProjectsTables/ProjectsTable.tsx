@@ -1,216 +1,195 @@
-import {
-  Badge,
-  BadgeProps,
-  Button,
-  Modal,
-  Space,
-  Table,
-  TableProps,
-  Tag,
-  TagProps,
-  Typography,
-  Tooltip,
-} from 'antd';
-import { Projects } from '../../../../types';
-import { ColumnsType } from 'antd/es/table';
-import {
-  CloseCircleOutlined,
-  EditOutlined,
-  PicCenterOutlined,
-} from '@ant-design/icons';
+import { Table, Tag, Typography, message } from 'antd';
 
-const showConfirm = (type: string) => {
-  if (type === 'hidden') {
-    Modal.confirm({
-      title: 'Bạn có muốn ẩn không ?',
-      okText: 'Đồng ý',
-      cancelText: 'Huỷ',
-      centered: true,
-      onOk() {
-        // onCancel();
-        // TODO: Thực hiện hành động tại đây
-      },
-      onCancel() {
-        console.log('Người dùng đã xác nhận');
-      },
-    });
-  } else {
-    Modal.confirm({
-      title: 'Bạn có muốn xóa không ?',
-      content: 'Hành động này sẽ không thể khôi phục.',
-      okText: 'Đồng ý',
-      cancelText: 'Huỷ',
-      centered: true,
-      onOk() {
-        // onCancel();
-        // TODO: Thực hiện hành động tại đây
-      },
-      onCancel() {
-        console.log('Người dùng đã xác nhận');
-      },
-    });
-  }
+import { ColumnsType } from 'antd/es/table';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+
+type ProjectsTableProps = {
+  onSelectionChange?: (selectedKeys: any[], selectedRows: any[]) => void;
 };
 
-const COLUMNS: ColumnsType<any> = [
-  {
-    title: 'Tên truyện',
-    dataIndex: 'project_name',
-    key: 'proj_name',
-    render: (_: any, { project_name }: Projects) => (
-      <Typography.Paragraph
-        ellipsis={{ rows: 1 }}
-        className="text-capitalize"
-        style={{ marginBottom: 0 }}
-      >
-        {project_name.substring(0, 20)}
-      </Typography.Paragraph>
-    ),
-    fixed: 'left',
-    width: 50,
-  },
-  {
-    title: 'Người đăng',
-    dataIndex: 'client_name',
-    key: 'proj_client_name',
-    width: 50,
-    fixed: 'left',
-  },
-  {
-    title: 'Tác giả',
-    dataIndex: 'project_category',
-    key: 'proj_category',
-    width: 100,
-    render: (_: any) => <span className="text-capitalize">{_}</span>,
-  },
-  {
-    title: 'Tổng số chương',
-    dataIndex: 'project_category',
-    key: 'proj_category',
-    width: 100,
-    render: (_: any) => <span className="text-capitalize">{_}</span>,
-  },
-  {
-    title: 'Trạng thái',
-    dataIndex: 'project_category',
-    key: 'proj_category',
-    width: 100,
-    render: (_: any) => <span className="text-capitalize">{_}</span>,
-  },
-  {
-    title: 'Mô tả truyện',
-    dataIndex: 'project_category',
-    key: 'proj_category',
-    width: 100,
-    render: (_: any) => <span className="text-capitalize">{_}</span>,
-  },
-  {
-    title: 'Đường dẫn ảnh',
-    dataIndex: 'project_category',
-    key: 'proj_category',
-    width: 100,
-    render: (_: any) => <span className="text-capitalize">{_}</span>,
-  },
-  {
-    title: 'Tổng số view',
-    dataIndex: 'project_category',
-    key: 'proj_category',
-    width: 100,
-    render: (_: any) => <span className="text-capitalize">{_}</span>,
-  },
-  {
-    title: 'Ngày đăng',
-    dataIndex: 'priority',
-    key: 'proj_priority',
-    width: 100,
-    render: (_: any) => {
-      let color: TagProps['color'];
+export const ProjectsTable = ({ onSelectionChange }: ProjectsTableProps) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const [dataProfiles, setDataProfiles] = useState<any>([]);
+  const { pathname } = useLocation();
 
-      if (_ === 'low') {
-        color = 'cyan';
-      } else if (_ === 'medium') {
-        color = 'geekblue';
-      } else {
-        color = 'magenta';
-      }
+  const COLUMNS: ColumnsType<any> = [
+    {
+      title: 'Tên Profile',
+      dataIndex: 'name',
+      key: 'name',
+      width: 50,
+    },
+    {
+      title: 'Tài khoản',
+      dataIndex: 'username',
+      key: 'username',
+      width: 50,
+      render: (_: any) => <span className="text-capitalize">{_}</span>,
+    },
+    {
+      title: 'Mật khẩu gốc',
+      dataIndex: 'password',
+      key: 'password',
+      width: 50,
+      render: (_: any) => <span className="text-capitalize">{_}</span>,
+    },
+    {
+      title: 'Mật khẩu mới',
+      dataIndex: 'new_password',
+      key: 'new_password',
+      width: 50,
+      render: (_: any) => <span className="text-capitalize">{_}</span>,
+    },
+    {
+      title: '2FA key',
+      dataIndex: 'tfa_secret',
+      key: 'tfa_secret',
+      width: 50,
+      render: (_: any) => <span className="text-capitalize">{_}</span>,
+    },
 
-      return (
-        <Tag color={color} className="text-capitalize">
+    {
+      title: 'Thông tin Proxy',
+      dataIndex: 'proxy_ip',
+      key: 'proxy_ip',
+      width: 100,
+      render: (_: any) => (
+        <Typography.Paragraph
+          ellipsis={{ rows: 1 }}
+          className="text-capitalize"
+          style={{ marginBottom: 0 }}
+        >
           {_}
-        </Tag>
-      );
+        </Typography.Paragraph>
+      ),
     },
-  },
-  {
-    title: 'Trạng thái',
-    dataIndex: 'status',
-    key: 'proj_status',
-    width: 100,
-    render: (_: any) => {
-      let status: BadgeProps['status'];
+    {
+      title: 'Loại Proxy',
+      dataIndex: 'proxy_type',
+      key: 'proxy_type',
+      width: 30,
+      render: (_: any) => <span className="text-capitalize">{_}</span>,
+    },
+    {
+      title: 'Trạng thái đăng nhập',
+      dataIndex: 'isLoginAction',
+      key: 'isLoginAction',
+      width: 10,
+      render: (value: boolean) => (
+        <Tag color={value ? 'green' : 'red'}>
+          {value ? 'Đang đăng nhập' : 'Chưa đăng nhập'}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Trạng thái thay đổi thông tin',
+      dataIndex: 'isChangeInfo',
+      key: 'isChangeInfo',
+      width: 70,
+      render: (value: boolean) => (
+        <Tag color={value ? 'green' : 'red'}>
+          {value ? 'Đã thay đổi' : 'Chưa thay đổi'}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Tiến trình lỗi',
+      dataIndex: 'isError',
+      key: 'isError',
+      width: 50,
+      render: (value: boolean) => (
+        <Tag color={value ? 'green' : 'red'}>
+          {value ? 'Bình thường' : 'Error'}
+        </Tag>
+      ),
+    },
 
-      if (_ === 'on hold') {
-        status = 'default';
-      } else if (_ === 'completed') {
-        status = 'success';
-      } else {
-        status = 'processing';
+    {
+      title: 'Thông tin lỗi',
+      dataIndex: 'errorInfo',
+      key: 'errorInfo',
+      width: 50,
+      render: (_: any) => (
+        <Typography.Paragraph
+          ellipsis={{ rows: 1 }}
+          className="text-capitalize"
+          style={{ marginBottom: 0 }}
+        >
+          {_}
+        </Typography.Paragraph>
+      ),
+    },
+  ];
+
+  // Gọi fetch dữ liệu
+  const fetchProfileData = useCallback(async (page: number, size: number) => {
+    setIsLoading(true);
+    try {
+      const response = await (window as any).electronAPI.getProfileList({
+        page: page,
+        limit: size,
+      });
+
+      // response có cấu trúc { data: {...}, error: {...} }
+      if (response.error?.code !== 0) {
+        message.error(response.error?.message || 'Lỗi khi lấy danh sách hồ sơ');
+        return;
       }
 
-      return <Badge status={status} text={_} className="text-capitalize" />;
+      const profileArray = response.data?.data || [];
+      setDataProfiles(profileArray);
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Lỗi fetch:', error);
+        message.error('Lỗi khi lấy danh sách hồ sơ');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (newSelectedRowKeys: any[], selectedRows: any[]) => {
+      setSelectedRowKeys(newSelectedRowKeys);
+      if (onSelectionChange) {
+        onSelectionChange(newSelectedRowKeys, selectedRows);
+      }
     },
-  },
-  {
-    title: 'Link truyện',
-    dataIndex: 'team_size',
-    key: 'proj_team_size',
-    width: 100,
-  },
-  {
-    title: 'Thao tác',
-    dataIndex: 'start_date',
-    key: 'proj_start_date',
-    width: 65,
-    fixed: 'right',
-    render: (_: any) => {
-      return (
-        <Space>
-          <Tooltip title="Xem chi tiết">
-            <Button>
-              <EditOutlined />
-            </Button>
-          </Tooltip>
+    columnWidth: 20,
+  };
 
-          <Tooltip title="Ẩn truyện">
-            <Button onClick={() => showConfirm('hidden')}>
-              <PicCenterOutlined />
-            </Button>
-          </Tooltip>
-
-          <Tooltip title="Xoá truyện">
-            <Button danger onClick={() => showConfirm('delete')}>
-              <CloseCircleOutlined />
-            </Button>
-          </Tooltip>
-        </Space>
-      );
+  const paginationConfig = {
+    current: currentPage,
+    pageSize: pageSize,
+    showSizeChanger: true,
+    pageSizeOptions: ['10', '20', '50', '100', '200'],
+    onChange: (page: number, size?: number) => {
+      setCurrentPage(page);
+      if (size) setPageSize(size);
     },
-  },
-];
+  };
 
-type Props = {
-  data: Projects[];
-} & TableProps<Projects>;
+  useEffect(() => {
+    fetchProfileData(1, 100);
+  }, [pathname, fetchProfileData]);
 
-export const ProjectsTable = ({ data, ...others }: Props) => {
   return (
-    <Table
-      dataSource={data}
-      columns={COLUMNS}
-      className="overflow-scroll"
-      scroll={{ x: 3000 }}
-      // loading={true}
-      {...others}
-    />
+    <div>
+      <Table
+        rowSelection={rowSelection}
+        dataSource={dataProfiles}
+        columns={COLUMNS}
+        className="overflow-scroll"
+        scroll={{ x: 2500 }}
+        pagination={paginationConfig}
+        loading={isLoading}
+        rowKey="profile_id"
+      />
+    </div>
   );
 };

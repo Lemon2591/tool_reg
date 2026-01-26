@@ -3,7 +3,6 @@ import {
   Dropdown,
   Flex,
   FloatButton,
-  Input,
   Layout,
   MenuProps,
   message,
@@ -14,22 +13,13 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
-  AppstoreOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  MessageOutlined,
-  QuestionOutlined,
-  SettingOutlined,
-  UserOutlined,
   MoonOutlined,
   SunOutlined,
 } from '@ant-design/icons';
-import {
-  CSSTransition,
-  SwitchTransition,
-  TransitionGroup,
-} from 'react-transition-group';
+// Removed route transition wrappers to avoid remount double renders
 import { useMediaQuery } from 'react-responsive';
 import SideNav from './SideNav.tsx';
 import HeaderNav from './HeaderNav.tsx';
@@ -97,7 +87,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
 
   return (
     <>
-      <NProgress isAnimating={isLoading} key={location.key} />
+      <NProgress isAnimating={isLoading} />
       <Layout
         style={{
           minHeight: '100vh',
@@ -200,29 +190,9 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
               minHeight: 360,
             }}
           >
-            <TransitionGroup>
-              <SwitchTransition>
-                <CSSTransition
-                  key={`css-transition-${location.key}`}
-                  nodeRef={nodeRef}
-                  onEnter={() => {
-                    setIsLoading(true);
-                  }}
-                  onEntered={() => {
-                    setIsLoading(false);
-                  }}
-                  timeout={300}
-                  classNames="bottom-to-top"
-                  unmountOnExit
-                >
-                  {() => (
-                    <div ref={nodeRef} style={{ background: 'none' }}>
-                      {children}
-                    </div>
-                  )}
-                </CSSTransition>
-              </SwitchTransition>
-            </TransitionGroup>
+            <div ref={nodeRef} style={{ background: 'none' }}>
+              {children}
+            </div>
             <div ref={floatBtnRef}>
               <FloatButton.BackTop />
             </div>
