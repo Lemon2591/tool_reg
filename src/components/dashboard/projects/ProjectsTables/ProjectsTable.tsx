@@ -102,8 +102,8 @@ export const ProjectsTable = ({ onSelectionChange }: ProjectsTableProps) => {
       key: 'isError',
       width: 50,
       render: (value: boolean) => (
-        <Tag color={value ? 'green' : 'red'}>
-          {value ? 'Bình thường' : 'Error'}
+        <Tag color={value ? 'red' : 'green'}>
+          {!value ? 'Bình thường' : 'Error'}
         </Tag>
       ),
     },
@@ -133,6 +133,7 @@ export const ProjectsTable = ({ onSelectionChange }: ProjectsTableProps) => {
         page: page,
         limit: size,
       });
+      console.log(response);
 
       // response có cấu trúc { data: {...}, error: {...} }
       if (response.error?.code !== 0) {
@@ -140,7 +141,12 @@ export const ProjectsTable = ({ onSelectionChange }: ProjectsTableProps) => {
         return;
       }
 
-      const profileArray = response.data?.data || [];
+      const profileArray = Array.isArray(response?.data?.data)
+        ? response.data.data
+        : Array.isArray(response?.data)
+          ? response.data
+          : [];
+
       setDataProfiles(profileArray);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {

@@ -28,6 +28,9 @@ console.log('📱 App getName():', app.getName());
 app.setPath('userData', `${app.getPath('appData')}/ProfilePilot`);
 
 const IX_API_BASE = 'http://127.0.0.1:53200';
+// Lưu cache vào thư mục /src/userData trong project
+const PROFILE_CACHE_PATH = () =>
+  path.join(app.getAppPath(), 'src', 'userData', 'profile-cache.json');
 
 /**
  * Loại lỗi theo action
@@ -57,10 +60,10 @@ interface LaunchProfileResult {
 /**
  * Lưu lỗi ra file JSON để debug
  */
-function saveErrorsToFile(
+const saveErrorsToFile = (
   errors: ErrorDetail[],
   logDir: string = './logs'
-): string {
+): string => {
   // Tạo folder logs nếu chưa tồn tại
   if (!fs.existsSync(logDir)) {
     fs.mkdirSync(logDir, { recursive: true });
@@ -83,12 +86,12 @@ function saveErrorsToFile(
   console.log(`📁 Lỗi đã lưu vào: ${logFilePath}`);
 
   return logFilePath;
-}
+};
 
 /**
  * Format và hiển thị lỗi theo từng category
  */
-function printErrorSummary(errors: ErrorDetail[]): void {
+const printErrorSummary = (errors: ErrorDetail[]): void => {
   if (errors.length === 0) {
     console.log('✅ Không có lỗi!');
     return;
@@ -118,12 +121,12 @@ function printErrorSummary(errors: ErrorDetail[]): void {
   });
 
   console.log('═'.repeat(80));
-}
+};
 
 /**
  * Hiển thị lỗi theo từng profile
  */
-function printErrorsByProfile(errors: ErrorDetail[]): void {
+const printErrorsByProfile = (errors: ErrorDetail[]): void => {
   if (errors.length === 0) {
     return;
   }
@@ -151,9 +154,77 @@ function printErrorsByProfile(errors: ErrorDetail[]): void {
   });
 
   console.log('═'.repeat(80));
-}
+};
 
-function createWindow() {
+const readProfileCache = (): any[] => {
+  try {
+    const cachePath = PROFILE_CACHE_PATH();
+    if (!fs.existsSync(cachePath)) {
+      return [];
+    }
+    const raw = fs.readFileSync(cachePath, 'utf-8');
+    return JSON.parse(raw || '[]');
+  } catch (err) {
+    console.error('⚠️ Không thể đọc cache profile:', err);
+    return [];
+  }
+};
+
+const writeProfileCache = (data: any[]): void => {
+  try {
+    const cachePath = PROFILE_CACHE_PATH();
+    const dir = path.dirname(cachePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(cachePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('⚠️ Không thể ghi cache profile:', err);
+  }
+};
+
+const mergeProfileCache = (cached: any[], incoming: any[]): any[] => {
+  // Ưu tiên so sánh theo username; fallback profile_id/id khi thiếu username
+  const map = new Map<string | number, any>();
+
+  cached.forEach((item) => {
+    const key = item?.username ?? item?.profile_id;
+    if (key !== undefined && key !== null) {
+      map.set(key, item);
+    }
+  });
+
+  incoming.forEach((item) => {
+    const key = item?.username ?? item?.profile_id;
+    if (key === undefined || key === null) return;
+    // Chỉ thêm mới nếu cache chưa có username này
+    if (!map.has(key)) {
+      map.set(key, item);
+    }
+  });
+
+  return Array.from(map.values());
+};
+
+const normalizeProfiles = (items: any[]): any[] =>
+  (items || []).map((item) => ({
+    profile_id: item?.profile_id ?? item?.id ?? null,
+    name: item?.name ?? '',
+    username: item?.username ?? '',
+    password: item?.password ?? '',
+    new_password: item?.new_password ?? item?.newPassword ?? '',
+    tfa_secret: item?.tfa_secret ?? item?.tfaSecret ?? '',
+    proxy_ip: item?.proxy_ip ?? item?.proxy ?? '',
+    proxy_type: item?.proxy_type ?? item?.proxyType ?? '',
+    isLoginAction: false,
+    isChangeInfo: false,
+    isError: false,
+    errorInfo: '',
+    isProxyErr: false,
+    isCaptchaErr: false,
+  }));
+
+const createWindow = () => {
   // Icon path: sử dụng app.getAppPath() để lấy đường dẫn root
   const iconPath = path.join(app.getAppPath(), 'public/iconApp.png');
 
@@ -169,7 +240,7 @@ function createWindow() {
     },
   });
   win.loadURL('http://localhost:5173/');
-}
+};
 
 /**
  * ĐĂNG KÝ HANDLER: Đảm bảo tên 'launch-profile' khớp 100% với preload.js
@@ -491,21 +562,59 @@ ipcMain.handle('launch-profile', async (_event, data) => {
 });
 
 ipcMain.handle('get-profile-list', async (event, { page, limit }) => {
+  const cachedProfiles = readProfileCache();
+
   try {
-    const response = await axios.post(
-      'http://127.0.0.1:53200/api/v2/profile-list',
-      {
-        profile_id: 0,
-        name: '',
-        group_id: 0,
-        tag_id: 0,
-        page,
-        limit,
-      }
+    const response = await axios.post(`${IX_API_BASE}/api/v2/profile-list`, {
+      profile_id: 0,
+      name: '',
+      group_id: 0,
+      tag_id: 0,
+      page,
+      limit,
+    });
+
+    const apiPayload = response?.data || {};
+    // Chỉ normalize dữ liệu mới từ API trước khi merge
+    const freshProfiles = normalizeProfiles(apiPayload?.data?.data || []);
+    const mergedProfiles = mergeProfileCache(cachedProfiles, freshProfiles);
+
+    // Ghi cache nếu chưa có hoặc có dữ liệu mới
+    const hasNewProfiles = mergedProfiles.length > cachedProfiles.length;
+
+    if (hasNewProfiles || !fs.existsSync(PROFILE_CACHE_PATH())) {
+      writeProfileCache(mergedProfiles);
+    }
+
+    // Luôn trả về dữ liệu đọc từ cache để đảm bảo đồng nhất với những gì đã lưu
+    const responseProfiles = fs.existsSync(PROFILE_CACHE_PATH())
+      ? readProfileCache()
+      : mergedProfiles;
+
+    return {
+      data: { data: responseProfiles },
+      error: { code: 0, message: 'OK (cache)' },
+      fromCache: true,
+    };
+  } catch (error: any) {
+    console.error(
+      '⚠️ Lỗi khi lấy danh sách hồ sơ, fallback dữ liệu cache:',
+      error?.message || error
     );
-    return response.data;
-  } catch (error) {
-    return error;
+
+    if (cachedProfiles.length > 0) {
+      return {
+        data: { data: cachedProfiles },
+        error: { code: 0, message: 'Dữ liệu từ cache (API lỗi)' },
+        fromCache: true,
+      };
+    }
+
+    return {
+      data: { data: [] },
+      error: { code: -1, message: error?.message || 'Không thể lấy dữ liệu' },
+      fromCache: true,
+    };
   }
 });
 
