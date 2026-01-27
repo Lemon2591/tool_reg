@@ -1,20 +1,22 @@
-import { Table, Tag, Typography, message } from 'antd';
+import { Table, Tag, Typography } from 'antd';
 
 import { ColumnsType } from 'antd/es/table';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState } from 'react';
 
 type ProjectsTableProps = {
   onSelectionChange?: (selectedKeys: any[], selectedRows: any[]) => void;
+  dataProfiles?: any[];
+  isLoading?: boolean;
 };
 
-export const ProjectsTable = ({ onSelectionChange }: ProjectsTableProps) => {
-  const [isLoading, setIsLoading] = useState(true);
+export const ProjectsTable = ({
+  onSelectionChange,
+  dataProfiles,
+  isLoading,
+}: ProjectsTableProps) => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
-  const [dataProfiles, setDataProfiles] = useState<any>([]);
-  const { pathname } = useLocation();
 
   const COLUMNS: ColumnsType<any> = [
     {
@@ -34,21 +36,21 @@ export const ProjectsTable = ({ onSelectionChange }: ProjectsTableProps) => {
       title: 'Mật khẩu gốc',
       dataIndex: 'password',
       key: 'password',
-      width: 50,
+      width: 80,
       render: (_: any) => <span className="text-capitalize">{_}</span>,
     },
     {
       title: 'Mật khẩu mới',
       dataIndex: 'new_password',
       key: 'new_password',
-      width: 50,
+      width: 80,
       render: (_: any) => <span className="text-capitalize">{_}</span>,
     },
     {
       title: '2FA key',
       dataIndex: 'tfa_secret',
       key: 'tfa_secret',
-      width: 50,
+      width: 200,
       render: (_: any) => <span className="text-capitalize">{_}</span>,
     },
 
@@ -112,51 +114,19 @@ export const ProjectsTable = ({ onSelectionChange }: ProjectsTableProps) => {
       title: 'Thông tin lỗi',
       dataIndex: 'errorInfo',
       key: 'errorInfo',
-      width: 50,
+      width: 250,
       render: (_: any) => (
-        <Typography.Paragraph
-          ellipsis={{ rows: 1 }}
-          className="text-capitalize"
-          style={{ marginBottom: 0 }}
-        >
-          {_}
-        </Typography.Paragraph>
+        <span className="text-capitalize">{_}</span>
+        // <Typography.Paragraph
+        //   ellipsis={{ rows: 1 }}
+        //   className="text-capitalize"
+        //   style={{ marginBottom: 0 }}
+        // >
+        //   {_}
+        // </Typography.Paragraph>
       ),
     },
   ];
-
-  // Gọi fetch dữ liệu
-  const fetchProfileData = useCallback(async (page: number, size: number) => {
-    setIsLoading(true);
-    try {
-      const response = await (window as any).electronAPI.getProfileList({
-        page: page,
-        limit: size,
-      });
-      console.log(response);
-
-      // response có cấu trúc { data: {...}, error: {...} }
-      if (response.error?.code !== 0) {
-        message.error(response.error?.message || 'Lỗi khi lấy danh sách hồ sơ');
-        return;
-      }
-
-      const profileArray = Array.isArray(response?.data?.data)
-        ? response.data.data
-        : Array.isArray(response?.data)
-          ? response.data
-          : [];
-
-      setDataProfiles(profileArray);
-    } catch (error) {
-      if ((error as Error).name !== 'AbortError') {
-        console.error('Lỗi fetch:', error);
-        message.error('Lỗi khi lấy danh sách hồ sơ');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   const rowSelection = {
     selectedRowKeys,
@@ -180,10 +150,6 @@ export const ProjectsTable = ({ onSelectionChange }: ProjectsTableProps) => {
     },
   };
 
-  useEffect(() => {
-    fetchProfileData(1, 100);
-  }, [pathname, fetchProfileData]);
-
   return (
     <div>
       <Table
@@ -191,7 +157,7 @@ export const ProjectsTable = ({ onSelectionChange }: ProjectsTableProps) => {
         dataSource={dataProfiles}
         columns={COLUMNS}
         className="overflow-scroll"
-        scroll={{ x: 2500 }}
+        scroll={{ x: 3000 }}
         pagination={paginationConfig}
         loading={isLoading}
         rowKey="profile_id"

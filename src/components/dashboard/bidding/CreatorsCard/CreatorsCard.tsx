@@ -1,8 +1,7 @@
 import { ReactNode } from 'react';
 import { Alert, Button, CardProps, Table, TableColumnsType, Tag } from 'antd';
 import { AuctionCreator } from '../../../../types';
-import { Card, UserAvatar } from '../../../index';
-import { UserAddOutlined } from '@ant-design/icons';
+import { Card } from '../../../index';
 import './styles.css';
 
 const COLUMNS: TableColumnsType<AuctionCreator> = [
@@ -10,7 +9,7 @@ const COLUMNS: TableColumnsType<AuctionCreator> = [
     key: 'creators_name',
     dataIndex: 'first_name',
     title: 'Tên khách hàng',
-    render: (_, { first_name, last_name, favorite_color }) => (
+    render: (_, { first_name, last_name }) => (
       <>{`${first_name} ${last_name}`}</>
     ),
   },

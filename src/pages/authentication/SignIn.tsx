@@ -1,6 +1,5 @@
 import {
   Button,
-  Checkbox,
   Col,
   Divider,
   Flex,
@@ -8,15 +7,8 @@ import {
   Input,
   message,
   Row,
-  theme,
   Typography,
 } from 'antd';
-import {
-  FacebookFilled,
-  GoogleOutlined,
-  TwitterOutlined,
-} from '@ant-design/icons';
-import { Logo } from '../../components';
 import { useMediaQuery } from 'react-responsive';
 import { PATH_AUTH, PATH_DASHBOARD } from '../../constants';
 import { useNavigate } from 'react-router-dom';
@@ -31,9 +23,6 @@ type FieldType = {
 };
 
 export const SignInPage = () => {
-  const {
-    token: { colorPrimary },
-  } = theme.useToken();
   const isMobile = useMediaQuery({ maxWidth: 769 });
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);

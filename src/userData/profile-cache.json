@@ -8,12 +8,12 @@
     "tfa_secret": "44ig i6fc osew 66gs bpbe 3sad rp37 psv6",
     "proxy_ip": "res-v2.pr.plainproxies.com",
     "proxy_type": "http",
-    "isLoginAction": true,
+    "isLoginAction": false,
     "isChangeInfo": false,
-    "isError": false,
-    "errorInfo": "",
+    "isError": true,
+    "errorInfo": "handleAutoLogin thất bại: Lỗi robot: yêu cầu xác minh người dùng.",
     "isProxyErr": false,
-    "isCaptchaErr": false
+    "isCaptchaErr": true
   },
   {
     "profile_id": 727,
@@ -184,10 +184,10 @@
     "tfa_secret": "xxlb z7hx 5w3q wxhw v7fx ol2f hdid 44pv",
     "proxy_ip": "res-v2.pr.plainproxies.com",
     "proxy_type": "http",
-    "isLoginAction": true,
+    "isLoginAction": false,
     "isChangeInfo": false,
-    "isError": false,
-    "errorInfo": "",
+    "isError": true,
+    "errorInfo": "handleAutoLogin thất bại: Selector not found: \"input[type=\"email\"]\" - Waiting for selector `input[type=\"email\"]` failed",
     "isProxyErr": false,
     "isCaptchaErr": false
   }

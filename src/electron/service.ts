@@ -94,8 +94,11 @@ export async function gotoWithRetry(
   }
 
   // Tất cả retry thất bại
-  throw new Error(
-    `Không thể navigate tới ${url} sau ${retries} lần thử. Lỗi: ${lastError?.message}`
+  throw Object.assign(
+    new Error(
+      `Không thể navigate tới ${url} sau ${retries} lần thử. Lỗi: ${lastError?.message}`
+    ),
+    { errCode: 'NETWORK' }
   );
 }
 
@@ -105,7 +108,7 @@ export async function gotoWithRetry(
  * @param timeout Thời gian chờ tìm selector (ms)
  * @returns true nếu phát hiện; false nếu không hoặc lỗi
  */
-async function isRobotChallengePresent(page: any) {
+export const isRobotChallengePresent = async (page: any) => {
   console.log('Đang rình xem có reCAPTCHA hiện lên không (đợi tối đa 15s)...');
 
   try {
@@ -119,6 +122,10 @@ async function isRobotChallengePresent(page: any) {
             document.body.innerText.includes('Confirm you’re not a robot') ||
             document.body.innerText.includes(
               'Xác nhận bạn không phải là robot'
+            ) ||
+            document.body.innerText.includes('Verify it’s you') ||
+            document.body.innerText.includes(
+              'To help keep your account secure, Google needs to verify it’s you. Please sign in again to continue.'
             );
 
           const hasIframe =
@@ -142,7 +149,7 @@ async function isRobotChallengePresent(page: any) {
   } catch (error) {
     return false;
   }
-}
+};
 
 /**
  * Điền mã 2FA nếu có
@@ -153,10 +160,15 @@ async function isRobotChallengePresent(page: any) {
  */
 export const typing2FA = async (page: any, profile: any): Promise<boolean> => {
   if (!page || typeof page.waitForSelector !== 'function') {
-    throw new Error('Invalid page object provided to typing2FA');
+    throw Object.assign(
+      new Error('Invalid page object provided to typing2FA'),
+      { errCode: 'ELEMENT' }
+    );
   }
   if (!profile) {
-    throw new Error('Profile is required for typing2FA');
+    throw Object.assign(new Error('Profile is required for typing2FA'), {
+      errCode: 'ELEMENT',
+    });
   }
 
   const otpInputSelector = 'input[type="tel"], #totpPin, input[name="totpPin"]';
@@ -176,8 +188,11 @@ export const typing2FA = async (page: any, profile: any): Promise<boolean> => {
 
     const secretKey = profile.tfa_secret?.trim();
     if (!secretKey) {
-      throw new Error(
-        'Cần 2FA nhưng profile.tfa_secret không tồn tại hoặc rỗng'
+      throw Object.assign(
+        new Error('Cần 2FA nhưng profile.tfa_secret không tồn tại hoặc rỗng'),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
@@ -197,8 +212,11 @@ export const typing2FA = async (page: any, profile: any): Promise<boolean> => {
         timeout: 300000,
       });
     } catch (navError) {
-      throw new Error(
-        `Navigation sau khi điền 2FA thất bại: ${(navError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Navigation sau khi điền 2FA thất bại: ${(navError as Error).message}`
+        ),
+        { errCode: 'NETWORK' }
       );
     }
 
@@ -229,28 +247,41 @@ export const typeLikeHuman = async (
   text: string
 ): Promise<void> => {
   if (!page || typeof page.waitForSelector !== 'function') {
-    throw new Error('Invalid page object provided to typeLikeHuman');
+    throw Object.assign(
+      new Error('Invalid page object provided to typeLikeHuman'),
+      { errCode: 'ELEMENT' }
+    );
   }
   if (!selector || typeof selector !== 'string') {
-    throw new Error('Selector must be a non-empty string');
+    throw Object.assign(new Error('Selector must be a non-empty string'), {
+      errCode: 'ELEMENT',
+    });
   }
   if (text === undefined || text === null) {
-    throw new Error('Text is required for typeLikeHuman');
+    throw Object.assign(new Error('Text is required for typeLikeHuman'), {
+      errCode: 'ELEMENT',
+    });
   }
 
   try {
     await page.waitForSelector(selector, { visible: true, timeout: 5000 });
   } catch (error) {
-    throw new Error(
-      `Selector not found: "${selector}" - ${(error as Error).message}`
+    throw Object.assign(
+      new Error(
+        `Selector not found: "${selector}" - ${(error as Error).message}`
+      ),
+      { errCode: 'ELEMENT' }
     );
   }
 
   try {
     await page.focus(selector);
   } catch (error) {
-    throw new Error(
-      `Cannot focus on selector "${selector}" - ${(error as Error).message}`
+    throw Object.assign(
+      new Error(
+        `Cannot focus on selector "${selector}" - ${(error as Error).message}`
+      ),
+      { errCode: 'ELEMENT' }
     );
   }
 
@@ -258,10 +289,13 @@ export const typeLikeHuman = async (
     try {
       await page.keyboard.sendCharacter(char);
     } catch (error) {
-      throw new Error(
-        `Cannot send character "${char}" to selector "${selector}" - ${
-          (error as Error).message
-        }`
+      throw Object.assign(
+        new Error(
+          `Cannot send character "${char}" to selector "${selector}" - ${
+            (error as Error).message
+          }`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
     await delay(Math.floor(Math.random() * 100) + 50);
@@ -279,13 +313,20 @@ export const handleAutoLogin = async (
   profile: any
 ): Promise<void> => {
   if (!page || typeof page.url !== 'function') {
-    throw new Error('Invalid page object provided to handleAutoLogin');
+    throw Object.assign(
+      new Error('Invalid page object provided to handleAutoLogin'),
+      { errCode: 'ELEMENT' }
+    );
   }
   if (!profile) {
-    throw new Error('Profile is required for handleAutoLogin');
+    throw Object.assign(new Error('Profile is required for handleAutoLogin'), {
+      errCode: 'DATA',
+    });
   }
   if (!profile.username) {
-    throw new Error('profile.username is required');
+    throw Object.assign(new Error('profile.username is required'), {
+      errCode: 'DATA',
+    });
   }
 
   // Ghi đè password
@@ -301,6 +342,13 @@ export const handleAutoLogin = async (
   }
 
   try {
+    const issRobot = await isRobotChallengePresent(page);
+    if (issRobot) {
+      throw Object.assign(
+        new Error('Lỗi robot: yêu cầu xác minh người dùng.'),
+        { errCode: 'ROBOT' }
+      );
+    }
     // Nhập email
     console.log('📧 Đang nhập email...');
     await typeLikeHuman(page, 'input[type="email"]', profile.username);
@@ -311,7 +359,10 @@ export const handleAutoLogin = async (
 
     const hasRobotAfterEmail = await isRobotChallengePresent(page);
     if (hasRobotAfterEmail) {
-      throw new Error('Lỗi robot: yêu cầu xác minh người dùng.');
+      throw Object.assign(
+        new Error('Lỗi robot: yêu cầu xác minh người dùng.'),
+        { errCode: 'ROBOT' }
+      );
     }
 
     // Kiểm tra và nhập mật khẩu
@@ -325,8 +376,11 @@ export const handleAutoLogin = async (
       await typeLikeHuman(page, 'input[type="password"]', profile.password);
       await page.click('#passwordNext');
     } catch (pwdError) {
-      throw new Error(
-        `Không tìm thấy ô nhập mật khẩu - ${(pwdError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy ô nhập mật khẩu - ${(pwdError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -339,8 +393,11 @@ export const handleAutoLogin = async (
     } else {
       console.log('✅ Đã hoàn thành đăng nhập (không có 2FA)');
     }
-  } catch (error) {
-    throw new Error(`handleAutoLogin thất bại: ${(error as Error).message}`);
+  } catch (error: any) {
+    throw Object.assign(
+      new Error(`handleAutoLogin thất bại: ${(error as Error).message}`),
+      { errCode: error?.errCode }
+    );
   }
 };
 
@@ -355,13 +412,21 @@ export const handleAutoChangePhone = async (
   profile: any
 ): Promise<void> => {
   if (!page || typeof page.goto !== 'function') {
-    throw new Error('Invalid page object provided to handleAutoChangePhone');
+    throw Object.assign(
+      new Error('Invalid page object provided to handleAutoChangePhone'),
+      { errCode: 'ELEMENT' }
+    );
   }
   if (!profile) {
-    throw new Error('Profile is required for handleAutoChangePhone');
+    throw Object.assign(
+      new Error('Profile is required for handleAutoChangePhone'),
+      { errCode: 'DATA' }
+    );
   }
   if (!profile.username) {
-    throw new Error('profile.username is required');
+    throw Object.assign(new Error('profile.username is required'), {
+      errCode: 'DATA',
+    });
   }
 
   console.log(
@@ -382,7 +447,12 @@ export const handleAutoChangePhone = async (
         return;
       }
       // Lỗi khác - throw
-      throw new Error(`Không thể navigate tới trang Security: ${errorMsg}`);
+      throw Object.assign(
+        new Error(`Không thể navigate tới trang Security: ${errorMsg}`),
+        {
+          errCode: 'NETWORK',
+        }
+      );
     }
 
     // 2. Tìm và click vào mục "Recovery phone"
@@ -395,10 +465,13 @@ export const handleAutoChangePhone = async (
         timeout: 10000,
       });
     } catch (selectorError) {
-      throw new Error(
-        `Không tìm thấy Recovery Phone link: ${
-          (selectorError as Error).message
-        }`
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy Recovery Phone link: ${
+            (selectorError as Error).message
+          }`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -406,8 +479,11 @@ export const handleAutoChangePhone = async (
     try {
       await page.click(recoveryPhoneSelector);
     } catch (clickError) {
-      throw new Error(
-        `Không thể click vào Recovery Phone: ${(clickError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không thể click vào Recovery Phone: ${(clickError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -427,10 +503,13 @@ export const handleAutoChangePhone = async (
         { timeout: 45000 }
       );
     } catch (waitError) {
-      throw new Error(
-        `Timeout chờ password input hoặc delete button: ${
-          (waitError as Error).message
-        }`
+      throw Object.assign(
+        new Error(
+          `Timeout chờ password input hoặc delete button: ${
+            (waitError as Error).message
+          }`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -442,8 +521,11 @@ export const handleAutoChangePhone = async (
       try {
         await typeLikeHuman(page, 'input[type="password"]', profile.password);
       } catch (typingError) {
-        throw new Error(
-          `Không thể nhập mật khẩu re-auth: ${(typingError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `Không thể nhập mật khẩu re-auth: ${(typingError as Error).message}`
+          ),
+          { errCode: 'ELEMENT' }
         );
       }
       await page.keyboard.press('Enter');
@@ -453,8 +535,11 @@ export const handleAutoChangePhone = async (
           timeout: 30000,
         });
       } catch (navError) {
-        throw new Error(
-          `Navigation sau re-auth thất bại: ${(navError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `Navigation sau re-auth thất bại: ${(navError as Error).message}`
+          ),
+          { errCode: 'NETWORK' }
         );
       }
 
@@ -462,8 +547,11 @@ export const handleAutoChangePhone = async (
       try {
         await typing2FA(page, profile);
       } catch (twoFAError) {
-        throw new Error(
-          `2FA validation thất bại: ${(twoFAError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `2FA validation thất bại: ${(twoFAError as Error).message}`
+          ),
+          { errCode: 'ELEMENT' }
         );
       }
     }
@@ -487,8 +575,11 @@ export const handleAutoChangePhone = async (
     try {
       await page.click(deleteBtnSelector);
     } catch (clickDeleteError) {
-      throw new Error(
-        `Không thể click nút xóa: ${(clickDeleteError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không thể click nút xóa: ${(clickDeleteError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -509,8 +600,11 @@ export const handleAutoChangePhone = async (
         { timeout: 10000 }
       );
     } catch (confirmWaitError) {
-      throw new Error(
-        `Timeout chờ nút xác nhận: ${(confirmWaitError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Timeout chờ nút xác nhận: ${(confirmWaitError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -534,13 +628,16 @@ export const handleAutoChangePhone = async (
     });
 
     if (!confirmClicked) {
-      throw new Error('Không tìm thấy nút xác nhận xóa');
+      throw Object.assign(new Error('Không tìm thấy nút xác nhận xóa'), {
+        errCode: 'ELEMENT',
+      });
     }
 
     console.log('✅ Đã xác nhận xóa số điện thoại thành công.');
-  } catch (error) {
-    throw new Error(
-      `handleAutoChangePhone thất bại: ${(error as Error).message}`
+  } catch (error: any) {
+    throw Object.assign(
+      new Error(`handleAutoChangePhone thất bại: ${(error as Error).message}`),
+      { errCode: error?.errCode }
     );
   }
 };
@@ -556,13 +653,21 @@ export const handleAutoChangeEmail = async (
   profile: any
 ): Promise<void> => {
   if (!page || typeof page.goto !== 'function') {
-    throw new Error('Invalid page object provided to handleAutoChangeEmail');
+    throw Object.assign(
+      new Error('Invalid page object provided to handleAutoChangeEmail'),
+      { errCode: 'ELEMENT' }
+    );
   }
   if (!profile) {
-    throw new Error('Profile is required for handleAutoChangeEmail');
+    throw Object.assign(
+      new Error('Profile is required for handleAutoChangeEmail'),
+      { errCode: 'DATA' }
+    );
   }
   if (!profile.username) {
-    throw new Error('profile.username is required');
+    throw Object.assign(new Error('profile.username is required'), {
+      errCode: 'DATA',
+    });
   }
 
   console.log(
@@ -583,7 +688,10 @@ export const handleAutoChangeEmail = async (
         return;
       }
       // Lỗi khác - throw
-      throw new Error(`Không thể navigate tới trang Security: ${errorMsg}`);
+      throw Object.assign(
+        new Error(`Không thể navigate tới trang Security: ${errorMsg}`),
+        { errCode: 'NETWORK' }
+      );
     }
 
     // 2. Tìm thẻ <a> dẫn đến trang quản lý Email khôi phục
@@ -598,10 +706,13 @@ export const handleAutoChangeEmail = async (
         }),
       ]);
     } catch (emailNavError) {
-      throw new Error(
-        `Không thể navigate tới Recovery Email: ${
-          (emailNavError as Error).message
-        }`
+      throw Object.assign(
+        new Error(
+          `Không thể navigate tới Recovery Email: ${
+            (emailNavError as Error).message
+          }`
+        ),
+        { errCode: 'NETWORK' }
       );
     }
 
@@ -619,8 +730,11 @@ export const handleAutoChangeEmail = async (
       try {
         await typeLikeHuman(page, 'input[type="password"]', profile.password);
       } catch (typingError) {
-        throw new Error(
-          `Không thể nhập password: ${(typingError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `Không thể nhập password: ${(typingError as Error).message}`
+          ),
+          { errCode: 'ELEMENT' }
         );
       }
 
@@ -633,8 +747,11 @@ export const handleAutoChangeEmail = async (
           }),
         ]);
       } catch (navError) {
-        throw new Error(
-          `Navigation sau password thất bại: ${(navError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `Navigation sau password thất bại: ${(navError as Error).message}`
+          ),
+          { errCode: 'NETWORK' }
         );
       }
       await delay(2000);
@@ -648,8 +765,9 @@ export const handleAutoChangeEmail = async (
         console.log('✅ 2FA đã được xử lý');
       }
     } catch (twoFAError) {
-      throw new Error(
-        `2FA validation thất bại: ${(twoFAError as Error).message}`
+      throw Object.assign(
+        new Error(`2FA validation thất bại: ${(twoFAError as Error).message}`),
+        { errCode: 'PROCESS' }
       );
     }
 
@@ -666,10 +784,13 @@ export const handleAutoChangeEmail = async (
         { timeout: 15000 }
       );
     } catch (editBtnError) {
-      throw new Error(
-        `Không tìm thấy nút Edit recovery email: ${
-          (editBtnError as Error).message
-        }`
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy nút Edit recovery email: ${
+            (editBtnError as Error).message
+          }`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -686,7 +807,10 @@ export const handleAutoChangeEmail = async (
     });
 
     if (!editClicked) {
-      throw new Error('Không thể click nút Edit recovery email');
+      throw Object.assign(
+        new Error('Không thể click nút Edit recovery email'),
+        { errCode: 'ELEMENT' }
+      );
     }
 
     console.log('✅ Đã click vào nút thay đổi Email.');
@@ -705,8 +829,11 @@ export const handleAutoChangeEmail = async (
         emailInputSelector
       );
     } catch (emailInputError) {
-      throw new Error(
-        `Không tìm thấy input email: ${(emailInputError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy input email: ${(emailInputError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -729,8 +856,11 @@ export const handleAutoChangeEmail = async (
         await page.keyboard.press('Backspace');
       }
     } catch (focusError) {
-      throw new Error(
-        `Không thể focus/clear email input: ${(focusError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không thể focus/clear email input: ${(focusError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -738,8 +868,11 @@ export const handleAutoChangeEmail = async (
     try {
       await typeLikeHuman(page, emailInputSelector, newEmail);
     } catch (typingError) {
-      throw new Error(
-        `Không thể nhập email mới: ${(typingError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không thể nhập email mới: ${(typingError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
       );
     }
 
@@ -767,7 +900,9 @@ export const handleAutoChangeEmail = async (
     }, saveBtnSelector);
 
     if (!saveClicked) {
-      throw new Error('Không tìm thấy nút Save để click');
+      throw Object.assign(new Error('Không tìm thấy nút Save để click'), {
+        errCode: 'ELEMENT',
+      });
     }
 
     console.log('✅ Đã click nút Save thành công.');
@@ -785,8 +920,11 @@ export const handleAutoChangeEmail = async (
           cancelBtnSelector
         );
       } catch (cancelWaitError) {
-        throw new Error(
-          `Không tìm thấy nút Cancel: ${(cancelWaitError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `Không tìm thấy nút Cancel: ${(cancelWaitError as Error).message}`
+          ),
+          { errCode: 'ELEMENT' }
         );
       }
 
@@ -811,19 +949,26 @@ export const handleAutoChangeEmail = async (
       }, cancelBtnSelector);
 
       if (!cancelClicked) {
-        throw new Error('Không tìm thấy hoặc không thể click nút Cancel');
+        throw Object.assign(
+          new Error('Không tìm thấy hoặc không thể click nút Cancel'),
+          { errCode: 'ELEMENT' }
+        );
       }
 
       console.log('✅ Đã nhấn nút Cancel thành công.');
       await delay(2000);
     } catch (dialogError) {
-      throw new Error(`Lỗi xử lý dialog: ${(dialogError as Error).message}`);
+      throw Object.assign(
+        new Error(`Lỗi xử lý dialog: ${(dialogError as Error).message}`),
+        { errCode: 'ELEMENT' }
+      );
     }
 
     console.log('✅ Đã hoàn thành thay đổi email khôi phục.');
-  } catch (error) {
-    throw new Error(
-      `handleAutoChangeEmail thất bại: ${(error as Error).message}`
+  } catch (error: any) {
+    throw Object.assign(
+      new Error(`handleAutoChangeEmail thất bại: ${(error as Error).message}`),
+      { errCode: error?.errCode }
     );
   }
 };
@@ -839,13 +984,25 @@ export const handleAutoChangePassword = async (
   profile: any
 ): Promise<void> => {
   if (!page || typeof page.goto !== 'function') {
-    throw new Error('Invalid page object provided to handleAutoChangePassword');
+    throw Object.assign(
+      new Error('Invalid page object provided to handleAutoChangePassword'),
+      {
+        errCode: 'ELEMENT',
+      }
+    );
   }
   if (!profile) {
-    throw new Error('Profile is required for handleAutoChangePassword');
+    throw Object.assign(
+      new Error('Profile is required for handleAutoChangePassword'),
+      {
+        errCode: 'DATA',
+      }
+    );
   }
   if (!profile.username) {
-    throw new Error('profile.username is required');
+    throw Object.assign(new Error('profile.username is required'), {
+      errCode: 'DATA',
+    });
   }
 
   try {
@@ -863,7 +1020,13 @@ export const handleAutoChangePassword = async (
         return;
       }
       // Lỗi khác - throw
-      throw new Error(`Không thể navigate tới Security: ${errorMsg}`);
+
+      throw Object.assign(
+        new Error(`Không thể navigate tới Security: ${errorMsg}`),
+        {
+          errCode: 'NETWORK',
+        }
+      );
     }
 
     // 2. Tìm mục Password
@@ -880,8 +1043,13 @@ export const handleAutoChangePassword = async (
         passwordLinkSelector
       );
     } catch (passwordLinkError) {
-      throw new Error(
-        `Không tìm thấy mục Password: ${(passwordLinkError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy mục Password: ${(passwordLinkError as Error).message}`
+        ),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
@@ -896,10 +1064,15 @@ export const handleAutoChangePassword = async (
         }),
       ]);
     } catch (navError) {
-      throw new Error(
-        `Navigation tới trang đổi mật khẩu thất bại: ${
-          (navError as Error).message
-        }`
+      throw Object.assign(
+        new Error(
+          `Navigation tới trang đổi mật khẩu thất bại: ${
+            (navError as Error).message
+          }`
+        ),
+        {
+          errCode: 'NETWORK',
+        }
       );
     }
 
@@ -919,8 +1092,13 @@ export const handleAutoChangePassword = async (
       try {
         await typeLikeHuman(page, 'input[type="password"]', profile.password);
       } catch (typingError) {
-        throw new Error(
-          `Không thể nhập password: ${(typingError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `Không thể nhập password: ${(typingError as Error).message}`
+          ),
+          {
+            errCode: 'ELEMENT',
+          }
         );
       }
 
@@ -933,8 +1111,13 @@ export const handleAutoChangePassword = async (
           }),
         ]);
       } catch (navError) {
-        throw new Error(
-          `Navigation sau password thất bại: ${(navError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `Navigation sau password thất bại: ${(navError as Error).message}`
+          ),
+          {
+            errCode: 'NETWORK',
+          }
         );
       }
       await delay(2000);
@@ -948,8 +1131,11 @@ export const handleAutoChangePassword = async (
         console.log('✅ 2FA đã được xử lý');
       }
     } catch (twoFAError) {
-      throw new Error(
-        `2FA validation thất bại: ${(twoFAError as Error).message}`
+      throw Object.assign(
+        new Error(`2FA validation thất bại: ${(twoFAError as Error).message}`),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
@@ -970,8 +1156,13 @@ export const handleAutoChangePassword = async (
         confirmPwdSelector
       );
     } catch (inputsError) {
-      throw new Error(
-        `Không tìm thấy input mật khẩu mới: ${(inputsError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy input mật khẩu mới: ${(inputsError as Error).message}`
+        ),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
@@ -985,8 +1176,13 @@ export const handleAutoChangePassword = async (
       await page.focus(confirmPwdSelector);
       await typeLikeHuman(page, confirmPwdSelector, newPass);
     } catch (typingError) {
-      throw new Error(
-        `Không thể nhập mật khẩu mới: ${(typingError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không thể nhập mật khẩu mới: ${(typingError as Error).message}`
+        ),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
@@ -1027,15 +1223,23 @@ export const handleAutoChangePassword = async (
     );
 
     if (!isClicked) {
-      throw new Error(
-        'Không tìm thấy nút Change Password để click. Có thể UI thay đổi.'
+      throw Object.assign(
+        new Error(
+          'Không tìm thấy nút Change Password để click. Có thể UI thay đổi.'
+        ),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
     console.log('✅ Đã click chính xác nút Change Password.');
-  } catch (error) {
-    throw new Error(
-      `handleAutoChangePassword thất bại: ${(error as Error).message}`
+  } catch (error: any) {
+    throw Object.assign(
+      new Error(
+        `handleAutoChangePassword thất bại: ${(error as Error).message}`
+      ),
+      { errCode: error?.errCode }
     );
   }
 };
@@ -1051,17 +1255,32 @@ export const handleDownloadBackUpCode = async (
   profile: any
 ): Promise<void> => {
   if (!page || typeof page.goto !== 'function') {
-    throw new Error('Invalid page object provided to handleDownloadBackUpCode');
+    throw Object.assign(
+      new Error('Invalid page object provided to handleDownloadBackUpCode'),
+      {
+        errCode: 'ELEMENT',
+      }
+    );
   }
   if (!profile) {
-    throw new Error('Profile is required for handleDownloadBackUpCode');
+    throw Object.assign(
+      new Error('Profile is required for handleDownloadBackUpCode'),
+      {
+        errCode: 'DATA',
+      }
+    );
   }
   if (!profile.username) {
-    throw new Error('profile.username is required');
+    throw Object.assign(new Error('profile.username is required'), {
+      errCode: 'DATA',
+    });
   }
   if (!profile.password) {
-    throw new Error(
-      'profile.password is required for handleDownloadBackUpCode'
+    throw Object.assign(
+      new Error('profile.password is required for handleDownloadBackUpCode'),
+      {
+        errCode: 'DATA',
+      }
     );
   }
 
@@ -1082,7 +1301,12 @@ export const handleDownloadBackUpCode = async (
         );
         return;
       }
-      throw new Error(`Không thể navigate tới trang Security: ${errorMsg}`);
+      throw Object.assign(
+        new Error(`Không thể navigate tới trang Security: ${errorMsg}`),
+        {
+          errCode: 'NETWORK',
+        }
+      );
     }
 
     // 2. Tìm và click link Backup Codes
@@ -1095,8 +1319,15 @@ export const handleDownloadBackUpCode = async (
         timeout: 10000,
       });
     } catch (selectorError) {
-      throw new Error(
-        `Không tìm thấy link Backup Codes: ${(selectorError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy link Backup Codes: ${
+            (selectorError as Error).message
+          }`
+        ),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
@@ -1109,10 +1340,15 @@ export const handleDownloadBackUpCode = async (
         }),
       ]);
     } catch (clickError) {
-      throw new Error(
-        `Navigation sau click Backup Codes thất bại: ${
-          (clickError as Error).message
-        }`
+      throw Object.assign(
+        new Error(
+          `Navigation sau click Backup Codes thất bại: ${
+            (clickError as Error).message
+          }`
+        ),
+        {
+          errCode: 'NETWORK',
+        }
       );
     }
 
@@ -1127,8 +1363,13 @@ export const handleDownloadBackUpCode = async (
       try {
         await typeLikeHuman(page, 'input[type="password"]', profile.password);
       } catch (typingError) {
-        throw new Error(
-          `Không thể nhập password: ${(typingError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `Không thể nhập password: ${(typingError as Error).message}`
+          ),
+          {
+            errCode: 'ELEMENT',
+          }
         );
       }
 
@@ -1141,8 +1382,13 @@ export const handleDownloadBackUpCode = async (
           }),
         ]);
       } catch (navError) {
-        throw new Error(
-          `Navigation sau password thất bại: ${(navError as Error).message}`
+        throw Object.assign(
+          new Error(
+            `Navigation sau password thất bại: ${(navError as Error).message}`
+          ),
+          {
+            errCode: 'NETWORK',
+          }
         );
       }
 
@@ -1157,8 +1403,11 @@ export const handleDownloadBackUpCode = async (
         console.log('✅ 2FA đã được xử lý');
       }
     } catch (twoFAError) {
-      throw new Error(
-        `2FA validation thất bại: ${(twoFAError as Error).message}`
+      throw Object.assign(
+        new Error(`2FA validation thất bại: ${(twoFAError as Error).message}`),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
@@ -1181,8 +1430,15 @@ export const handleDownloadBackUpCode = async (
         { timeout: 15000 }
       );
     } catch (waitError) {
-      throw new Error(
-        `Không tìm thấy nút "Get Backup Codes": ${(waitError as Error).message}`
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy nút "Get Backup Codes": ${
+            (waitError as Error).message
+          }`
+        ),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
@@ -1206,7 +1462,9 @@ export const handleDownloadBackUpCode = async (
     });
 
     if (!getCodesClicked) {
-      throw new Error('Không thể click nút "Get Backup Codes"');
+      throw Object.assign(new Error('Không thể click nút "Get Backup Codes"'), {
+        errCode: 'ELEMENT',
+      });
     }
 
     console.log('✅ Đã click nút "Get Backup Codes".');
@@ -1230,10 +1488,15 @@ export const handleDownloadBackUpCode = async (
         { timeout: 15000 }
       );
     } catch (downloadWaitError) {
-      throw new Error(
-        `Không tìm thấy nút "Download Codes": ${
-          (downloadWaitError as Error).message
-        }`
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy nút "Download Codes": ${
+            (downloadWaitError as Error).message
+          }`
+        ),
+        {
+          errCode: 'ELEMENT',
+        }
       );
     }
 
@@ -1256,16 +1519,21 @@ export const handleDownloadBackUpCode = async (
     });
 
     if (!downloadClicked) {
-      throw new Error('Không thể click nút "Download Codes"');
+      throw Object.assign(new Error('Không thể click nút "Download Codes"'), {
+        errCode: 'ELEMENT',
+      });
     }
 
     console.log('✅ Đã click nút "Download Codes".');
     await delay(2000);
 
     console.log('✅ Đã hoàn thành tải mã backup thành công.');
-  } catch (error) {
-    throw new Error(
-      `handleDownloadBackUpCode thất bại: ${(error as Error).message}`
+  } catch (error: any) {
+    throw Object.assign(
+      new Error(
+        `handleDownloadBackUpCode thất bại: ${(error as Error).message}`
+      ),
+      { errCode: error?.errCode }
     );
   }
 };

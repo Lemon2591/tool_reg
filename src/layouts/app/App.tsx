@@ -10,7 +10,7 @@ import {
   Tooltip,
   Switch,
 } from 'antd';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
   LogoutOutlined,
@@ -24,7 +24,6 @@ import { useMediaQuery } from 'react-responsive';
 import SideNav from './SideNav.tsx';
 import HeaderNav from './HeaderNav.tsx';
 import FooterNav from './FooterNav.tsx';
-import { NProgress } from '../../components';
 import { PATH_LANDING } from '../../constants';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../redux/store.ts';
@@ -43,8 +42,6 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const isMobile = useMediaQuery({ maxWidth: 769 });
   const [collapsed, setCollapsed] = useState(true);
   const [navFill, setNavFill] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const location = useLocation();
   const navigate = useNavigate();
   const nodeRef = useRef(null);
   const floatBtnRef = useRef(null);
@@ -87,7 +84,6 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
 
   return (
     <>
-      <NProgress isAnimating={isLoading} />
       <Layout
         style={{
           minHeight: '100vh',

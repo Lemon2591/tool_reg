@@ -7,7 +7,7 @@ const COLUMNS = [
     title: 'Tên khách hàng',
     dataIndex: 'client_name',
     key: 'c_name',
-    render: (_: any, { first_name, last_name }: Clients) => (
+    render: (_: any, { first_name }: Clients) => (
       <UserAvatar fullName={`${first_name}`} mark={true} />
     ),
   },

@@ -1,4 +1,4 @@
-import { call, put, takeEvery } from 'redux-saga/effects';
+import { put, takeEvery } from 'redux-saga/effects';
 import { setThemeReducer } from '../reducer/themeReducer';
 import constants from '../action/index';
 import { createAction } from '@reduxjs/toolkit';

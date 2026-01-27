@@ -8,7 +8,7 @@ import {
   Tooltip,
 } from 'antd';
 // Removed transition-group wrappers to avoid remount double renders
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import {
   AppstoreAddOutlined,
@@ -19,10 +19,9 @@ import {
   ProductOutlined,
 } from '@ant-design/icons';
 import { useMediaQuery } from 'react-responsive';
-import { Logo, NProgress } from '../../components';
+import { Logo } from '../../components';
 import {
   PATH_AUTH,
-  PATH_DASHBOARD,
   PATH_DOCS,
   PATH_GITHUB,
   PATH_LANDING,
@@ -35,8 +34,6 @@ export const GuestLayout = () => {
     token: { borderRadius },
   } = theme.useToken();
   const isMobile = useMediaQuery({ maxWidth: 769 });
-  const [isLoading, setIsLoading] = useState(false);
-  const location = useLocation();
   const nodeRef = useRef(null);
   const [navFill, setNavFill] = useState(false);
   const [open, setOpen] = useState(false);
@@ -61,7 +58,6 @@ export const GuestLayout = () => {
 
   return (
     <>
-      <NProgress isAnimating={isLoading} />
       <Layout
         className="layout"
         style={{

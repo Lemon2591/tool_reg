@@ -4,7 +4,6 @@ import {
   CardProps,
   Table,
   TableProps,
-  ProgressProps,
   Space,
   Tooltip,
   Modal,
@@ -59,12 +58,6 @@ const showConfirm = (type: string) => {
       },
     });
   }
-};
-
-const PROGRESS_PROPS: ProgressProps = {
-  style: {
-    width: 300,
-  },
 };
 
 const TAB_LIST: TabList = [

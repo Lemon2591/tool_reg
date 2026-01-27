@@ -1,5 +1,4 @@
-import { Button, CardProps } from 'antd';
-import { RightOutlined } from '@ant-design/icons';
+import { CardProps } from 'antd';
 import { Area } from '@ant-design/charts';
 import { Card } from '../../../index.ts';
 

@@ -1,13 +1,5 @@
-import {
-  Card,
-  DatePicker,
-  Modal,
-  Popconfirm,
-  Radio,
-  Select,
-  Space,
-} from 'antd';
-import { Button, Col, Form, Input, Row, Typography } from 'antd';
+import { Card, DatePicker, Modal, Select, Space } from 'antd';
+import { Button, Col, Form, Input, Row } from 'antd';
 import { CloseOutlined, SaveOutlined } from '@ant-design/icons';
 
 type Props = any;
@@ -32,7 +24,7 @@ export const CustomerModal = ({
   isOpen,
   ...others
 }: Props) => {
-  const onFinish = async (values: any) => {
+  const onFinish = async () => {
     // setLoading(true);
     // const payload = {
     //   full_name: `${values?.firstName} ${values?.lastName}`,

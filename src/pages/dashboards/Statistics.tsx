@@ -1,17 +1,14 @@
 import { Col, Row } from 'antd';
 import {
-  MarketingSocialStatsCard,
   MarketingStatsCard,
   PageHeader,
   VisitorsChartCard,
 } from '../../components';
-import { HomeOutlined, PieChartOutlined } from '@ant-design/icons';
+import { PieChartOutlined } from '@ant-design/icons';
 import { DASHBOARD_ITEMS } from '../../constants';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { useStylesContext } from '../../context';
-import { useFetchData } from '../../hooks';
-import { DeliveryTableCard } from '../../components';
 
 export const MarketingDashboardPage = () => {
   const stylesContext = useStylesContext();

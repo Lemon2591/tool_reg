@@ -8,7 +8,6 @@ import {
   Input,
   message,
   Row,
-  theme,
   Typography,
 } from 'antd';
 import { useMediaQuery } from 'react-responsive';
@@ -29,9 +28,6 @@ type FieldType = {
 };
 
 export const SignUpPage = () => {
-  const {
-    token: { colorPrimary },
-  } = theme.useToken();
   const isMobile = useMediaQuery({ maxWidth: 769 });
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);

@@ -36,16 +36,6 @@ const DASHBOARDS = [
     image: '/showcase/dashboard/bidding.png',
   },
   {
-    title: 'default',
-    link: PATH_DASHBOARD.default,
-    image: '/showcase/dashboard/default.png',
-  },
-  {
-    title: 'ecommerce',
-    link: PATH_DASHBOARD.ecommerce,
-    image: '/showcase/dashboard/ecommerce.png',
-  },
-  {
     title: 'learning',
     link: PATH_DASHBOARD.learning,
     image: '/showcase/dashboard/learning.png',
@@ -54,16 +44,6 @@ const DASHBOARDS = [
     title: 'logistics',
     link: PATH_DASHBOARD.logistics,
     image: '/showcase/dashboard/logistics.png',
-  },
-  {
-    title: 'marketing',
-    link: PATH_DASHBOARD.marketing,
-    image: '/showcase/dashboard/marketing.png',
-  },
-  {
-    title: 'projects',
-    link: PATH_DASHBOARD.projects,
-    image: '/showcase/dashboard/projects.png',
   },
   {
     title: 'social',

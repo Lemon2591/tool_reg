@@ -1,27 +1,6 @@
-import {
-  Button,
-  Col,
-  Flex,
-  Popover,
-  Row,
-  RowProps,
-  Select,
-  Typography,
-} from 'antd';
-import {
-  AuctionCarousel,
-  BiddingCategoriesCard,
-  Card,
-  CreatorsCard,
-  PageHeader,
-  TopItemsCard,
-  TransactionsCard,
-} from '../../components';
-import {
-  HomeOutlined,
-  PieChartOutlined,
-  QuestionOutlined,
-} from '@ant-design/icons';
+import { Col, Flex, Row, RowProps, Typography } from 'antd';
+import { Card, CreatorsCard, PageHeader } from '../../components';
+import { PieChartOutlined } from '@ant-design/icons';
 import { DASHBOARD_ITEMS } from '../../constants';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';

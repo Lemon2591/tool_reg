@@ -1,4 +1,4 @@
-import { Flex, FlexProps, theme, Typography } from 'antd';
+import { Flex, FlexProps } from 'antd';
 import { Link } from 'react-router-dom';
 import { CSSProperties } from 'react';
 
@@ -23,10 +23,6 @@ export const Logo = ({
   bgColor,
   ...others
 }: LogoProps) => {
-  const {
-    token: { borderRadius },
-  } = theme.useToken();
-
   return (
     <Link to={href || '#'} className="logo-link">
       <Flex gap={others.gap || 'small'} align="center" {...others}>

@@ -1,16 +1,16 @@
 import { Button, Col, Row, Space, Input, message, Checkbox } from 'antd';
+import debounce from 'lodash/debounce';
 import { Card, PageHeader, ProjectsTable } from '../../components';
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   PieChartOutlined,
   LoginOutlined,
   EditOutlined,
   PlayCircleOutlined,
-  SearchOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import { DASHBOARD_ITEMS } from '../../constants';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 
 export const ProjectsDashboardPage = () => {
@@ -21,16 +21,76 @@ export const ProjectsDashboardPage = () => {
   const [changeStatus, setChangeStatus] = useState<boolean>(false);
   const [errorStatus, setErrorStatus] = useState<boolean>(false);
   const [errorProxy, setErrorProxy] = useState<boolean>(false);
+  const [errorCaptcha, setErrorCaptcha] = useState<boolean>(false);
   const [searchText, setSearchText] = useState('');
+  const [debouncedSearchText, setDebouncedSearchText] = useState('');
   const [selectedProfileKeys, setSelectedProfileKeys] = useState<any[]>([]);
+  const [rawProfiles, setRawProfiles] = useState<any[]>([]);
+  const [dataProfiles, setDataProfiles] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
+  const { pathname } = useLocation();
   const resetFilters = () => {
     setLoginStatus(false);
     setChangeStatus(false);
     setErrorStatus(false);
     setErrorProxy(false);
+    setErrorCaptcha(false);
     setSearchText('');
   };
+
+  const filterProfiles = useCallback(
+    (profiles: any[]) => {
+      const keyword = (debouncedSearchText || '').trim().toLowerCase();
+      return profiles.filter((p) => {
+        const matchesLogin = !loginStatus || Boolean(p?.isLoginAction);
+        const matchesChange = !changeStatus || Boolean(p?.isChangeInfo);
+        const matchesError = !errorStatus || Boolean(p?.isError);
+        const matchesProxy = !errorProxy || Boolean(p?.isProxyErr);
+        const matchesCaptcha = !errorCaptcha || Boolean(p?.isCaptchaErr);
+
+        const matchesSearch = !keyword
+          ? true
+          : (p?.name || '').toLowerCase().includes(keyword) ||
+            (p?.username || '').toLowerCase().includes(keyword);
+
+        return (
+          matchesLogin &&
+          matchesChange &&
+          matchesError &&
+          matchesProxy &&
+          matchesCaptcha &&
+          matchesSearch
+        );
+      });
+    },
+    [
+      loginStatus,
+      changeStatus,
+      errorStatus,
+      errorProxy,
+      errorCaptcha,
+      debouncedSearchText,
+    ]
+  );
+
+  // Debounce input bằng lodash để tránh lọc liên tục khi gõ
+  const debounceSearch = useMemo(
+    () => debounce((value: string) => setDebouncedSearchText(value), 300),
+    []
+  );
+
+  useEffect(() => {
+    debounceSearch(searchText);
+    return () => debounceSearch.cancel();
+  }, [searchText, debounceSearch]);
+
+  // Khi thay đổi bộ lọc, tự áp dụng nếu đã có dữ liệu tải về
+  useEffect(() => {
+    if (rawProfiles.length > 0) {
+      setDataProfiles(filterProfiles(rawProfiles));
+    }
+  }, [filterProfiles, rawProfiles]);
 
   const toggleLogin = () => {
     if (isLoginAction) {
@@ -68,20 +128,67 @@ export const ProjectsDashboardPage = () => {
         profileIds: selectedProfileKeys,
       };
       message.loading('Đang khởi tạo trình duyệt...', 0);
-
       // 3. Gọi lệnh thông qua cầu nối IPC
-      const result = await (window as any).electronAPI.openBrowser(payload);
+      await (window as any).electronAPI.openBrowser(payload);
       message.destroy();
-      if (result.success) {
-        message.success('Đã mở trình duyệt thành công!');
-      } else {
-        message.error('Lỗi: ' + result.error);
-      }
+      message.success('Đã chạy xong tiến trình trên các hồ sơ đã chọn.');
+      await fetchProfileData(1, 100);
     } catch (error) {
-      console.log(error);
-      message.error('Dữ liệu không hợp lệ!');
+      message.error('Tiến trình đã xảy ra lỗi, vui lòng thử lại sau.');
     }
   };
+
+  // Gọi fetch dữ liệu
+  const fetchProfileData = useCallback(
+    async (page: number, size: number) => {
+      setIsLoading(true);
+      try {
+        const response = await (window as any).electronAPI.getProfileList({
+          page: page,
+          limit: size,
+        });
+        console.log(response);
+
+        // response có cấu trúc { data: {...}, error: {...} }
+        if (response.error?.code !== 0) {
+          message.error(
+            response.error?.message || 'Lỗi khi lấy danh sách hồ sơ'
+          );
+          return;
+        }
+
+        const profileArray = Array.isArray(response?.data?.data)
+          ? response.data.data
+          : Array.isArray(response?.data)
+            ? response.data
+            : [];
+
+        setRawProfiles(profileArray);
+        setDataProfiles(filterProfiles(profileArray));
+      } catch (error) {
+        console.log(error);
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Lỗi fetch:', error);
+          message.error('Lỗi khi lấy danh sách hồ sơ');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [filterProfiles]
+  );
+
+  const handleApplyFilters = async () => {
+    await fetchProfileData(1, 100);
+  };
+
+  const handleSyncProfiles = async () => {
+    await fetchProfileData(1, 100);
+  };
+
+  useEffect(() => {
+    fetchProfileData(1, 100);
+  }, [pathname, fetchProfileData]);
 
   return (
     <div>
@@ -146,7 +253,7 @@ export const ProjectsDashboardPage = () => {
                 indeterminate={false}
                 onChange={(e) => setLoginStatus(e.target.checked)}
               >
-                Đang đăng nhập
+                Đã đăng nhập
               </Checkbox>
               <Checkbox
                 checked={changeStatus}
@@ -169,21 +276,21 @@ export const ProjectsDashboardPage = () => {
               >
                 Lỗi Proxy
               </Checkbox>
+              <Checkbox
+                checked={errorCaptcha}
+                indeterminate={false}
+                onChange={(e) => setErrorCaptcha(e.target.checked)}
+              >
+                Lỗi robot
+              </Checkbox>
               <Input
                 placeholder="Tìm kiếm theo tên / tài khoản"
                 allowClear
                 style={{ width: 260 }}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                onPressEnter={() => setSearchText(searchText.trim())}
+                onPressEnter={() => handleApplyFilters()}
               />
-              <Button
-                type="primary"
-                icon={<SearchOutlined />}
-                onClick={() => setSearchText(searchText.trim())}
-              >
-                Tìm kiếm
-              </Button>
               <Button onClick={resetFilters}>Xóa bộ lọc</Button>
             </Space>
           </Card>
@@ -198,7 +305,7 @@ export const ProjectsDashboardPage = () => {
                   icon={<SyncOutlined />}
                   type="primary"
                   loading={false}
-                  // onClick={() => setIsOpen(!isOpen)}
+                  onClick={() => handleSyncProfiles()}
                 >
                   Đồng bộ
                 </Button>
@@ -216,7 +323,9 @@ export const ProjectsDashboardPage = () => {
             onTabChange={onProjectsTabChange}
           >
             <ProjectsTable
-              onSelectionChange={(keys, rows) => setSelectedProfileKeys(rows)}
+              onSelectionChange={(_keys, rows) => setSelectedProfileKeys(rows)}
+              dataProfiles={dataProfiles}
+              isLoading={isLoading}
             />
           </Card>
         </Col>

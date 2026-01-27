@@ -11,8 +11,6 @@ import {
 } from 'antd';
 import { Logo } from '../../components';
 import { useMediaQuery } from 'react-responsive';
-import { PATH_DASHBOARD } from '../../constants';
-import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 
 const { Title, Text } = Typography;
@@ -26,7 +24,6 @@ export const PasswordResetPage = () => {
     token: { colorPrimary },
   } = theme.useToken();
   const isMobile = useMediaQuery({ maxWidth: 769 });
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
   const onFinish = (values: any) => {
@@ -37,10 +34,6 @@ export const PasswordResetPage = () => {
       type: 'success',
       content: 'Password reset link sent successfully',
     });
-
-    setTimeout(() => {
-      navigate(PATH_DASHBOARD.default);
-    }, 5000);
   };
 
   const onFinishFailed = (errorInfo: any) => {

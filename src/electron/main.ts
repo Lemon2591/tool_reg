@@ -28,9 +28,9 @@ console.log('📱 App getName():', app.getName());
 app.setPath('userData', `${app.getPath('appData')}/ProfilePilot`);
 
 const IX_API_BASE = 'http://127.0.0.1:53200';
-// Lưu cache vào thư mục /src/userData trong project
+// Lưu cache vào thư mục userData của hệ thống (thư mục ghi được khi đóng gói)
 const PROFILE_CACHE_PATH = () =>
-  path.join(app.getAppPath(), 'src', 'userData', 'profile-cache.json');
+  path.join(app.getPath('userData'), 'profile-cache.json');
 
 /**
  * Loại lỗi theo action
@@ -40,6 +40,7 @@ interface ErrorDetail {
   profileName: string;
   action: string;
   error: string;
+  errCode: string;
   timestamp: string;
   stack?: string;
 }
@@ -148,7 +149,9 @@ const printErrorsByProfile = (errors: ErrorDetail[]): void => {
     console.log(`\n👤 ${profileKey}`);
     console.log('─'.repeat(80));
     profileErrors.forEach((err, index) => {
-      console.log(`  ${index + 1}. [${err.action}] ❌ ${err.error}`);
+      console.log(
+        `  ${index + 1}. [${err.action}] ❌ ${err.error}❌ ${err.errCode}`
+      );
     });
     console.log();
   });
@@ -206,6 +209,18 @@ const mergeProfileCache = (cached: any[], incoming: any[]): any[] => {
   return Array.from(map.values());
 };
 
+const updateCacheProfile = (
+  cache: any[],
+  profileId: number,
+  updates: Record<string, any>
+): void => {
+  if (!profileId) return;
+  const idx = cache.findIndex((p) => p?.profile_id === profileId);
+  if (idx === -1) return;
+  cache[idx] = { ...cache[idx], ...updates };
+  writeProfileCache(cache);
+};
+
 const normalizeProfiles = (items: any[]): any[] =>
   (items || []).map((item) => ({
     profile_id: item?.profile_id ?? item?.id ?? null,
@@ -239,7 +254,27 @@ const createWindow = () => {
       contextIsolation: true,
     },
   });
-  win.loadURL('http://localhost:5173/');
+
+  // Dev dùng Vite server, build dùng bundle dist/index.html
+  const devServerUrl =
+    process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173/';
+  if (!app.isPackaged) {
+    win.loadURL(devServerUrl);
+  } else {
+    // Khi đóng gói, dist và dist-electron nằm cạnh nhau trong resources/app.asar
+    const rootPath = app.isPackaged
+      ? process.resourcesPath
+      : path.resolve(__dirname, '..');
+    const indexPath = path.join(rootPath, 'dist', 'index.html');
+
+    if (!fs.existsSync(indexPath)) {
+      console.error('❌ Không tìm thấy dist/index.html tại', indexPath);
+    } else {
+      console.log('✅ Load renderer từ', indexPath);
+    }
+
+    win.loadFile(indexPath);
+  }
 };
 
 /**
@@ -250,6 +285,7 @@ ipcMain.handle('launch-profile', async (_event, data) => {
     console.log('--- Bắt đầu quy trình launch-profile ---');
 
     const profiles = data?.profileIds || [];
+    const cachedProfiles = readProfileCache();
 
     // Mảng lưu lỗi cho từng profile
     const errors: ErrorDetail[] = [];
@@ -259,16 +295,44 @@ ipcMain.handle('launch-profile', async (_event, data) => {
     for (const profile of profiles) {
       console.log(`🔄 Đang xử lý: ${profile.name} (ID: ${profile.profile_id})`);
       let browser: Browser | null = null;
+      let loginSuccess = false;
+      let changeSuccess = false;
+      let profileHadError = false;
+      let firstErrorMsg = '';
+      let isProxyErr = false;
+      let isCaptchaErr = false;
+
+      const markErrFlags = (code?: string) => {
+        if (code === 'NETWORK') isProxyErr = true;
+        if (code === 'ROBOT') isCaptchaErr = true;
+      };
+
+      const markCache = () => {
+        updateCacheProfile(cachedProfiles, profile.profile_id, {
+          isLoginAction: loginSuccess,
+          isChangeInfo: changeSuccess,
+          isError: profileHadError,
+          errorInfo: firstErrorMsg,
+          isProxyErr,
+          isCaptchaErr,
+        });
+      };
+
       try {
         // Guard thiếu dữ liệu
         if (!profile || !profile.profile_id) {
+          const errorMsg = 'Thiếu profile_id để mở trình duyệt';
           errors.push({
             profileId: profile?.profile_id || 0,
             profileName: profile?.name || 'unknown',
             action: 'profile-open',
-            error: 'Thiếu profile_id để mở trình duyệt',
+            error: errorMsg,
+            errCode: 'PROFILE_ID_MISSING',
             timestamp: new Date().toISOString(),
           });
+          profileHadError = true;
+          firstErrorMsg = firstErrorMsg || errorMsg;
+          markCache();
           continue;
         }
 
@@ -281,28 +345,39 @@ ipcMain.handle('launch-profile', async (_event, data) => {
             { timeout: 15000 }
           );
         } catch (err: any) {
+          const errorMsg = `Không thể mở profile (network/timeout): ${
+            err?.message || ''
+          }`;
           errors.push({
             profileId: profile.profile_id,
             profileName: profile.name,
             action: 'profile-open',
-            error: `Không thể mở profile (network/timeout): ${
-              err?.message || ''
-            }`,
+            error: errorMsg,
+            errCode: 'PROFILE_OPEN_NETWORK',
             timestamp: new Date().toISOString(),
           });
+          profileHadError = true;
+          firstErrorMsg = firstErrorMsg || errorMsg;
+          markCache();
           continue;
         }
 
+        console.log(openRes, 'Phản hồi mở profile từ ixBrowser API');
         if (openRes?.data?.error?.code === 0) {
           const debugUrl = openRes.data?.data?.debugging_address;
           if (!debugUrl) {
+            const errorMsg = 'Thiếu debugging_address trong phản hồi';
             errors.push({
               profileId: profile.profile_id,
               profileName: profile.name,
               action: 'profile-open',
-              error: 'Thiếu debugging_address trong phản hồi',
+              error: errorMsg,
+              errCode: 'PROFILE_DEBUG_URL_MISSING',
               timestamp: new Date().toISOString(),
             });
+            profileHadError = true;
+            firstErrorMsg = firstErrorMsg || errorMsg;
+            markCache();
             continue;
           }
 
@@ -316,17 +391,11 @@ ipcMain.handle('launch-profile', async (_event, data) => {
           const pages = await browser.pages();
           const page = pages.length > 0 ? pages[0] : await browser.newPage();
 
-          for (const p of pages) {
-            const client = await p.target().createCDPSession();
-            // Xóa toàn bộ Cookies và Cache của trình duyệt
-            await client.send('Network.clearBrowserCookies');
-            await client.send('Network.clearBrowserCache');
-          }
-
           console.log(profile);
           console.log(
             `📍 Đang điều hướng profile ${profile.name} tới Gmail...`
           );
+
           // Thao tác tự động
           await gotoWithRetry(page, 'https://accounts.google.com/');
 
@@ -337,17 +406,24 @@ ipcMain.handle('launch-profile', async (_event, data) => {
             try {
               await handleAutoLogin(page, profile);
               console.log(`✅ Đăng nhập thành công cho: ${profile.name}`);
+              loginSuccess = true;
             } catch (loginError: any) {
               const errorMsg =
                 loginError.message || 'Lỗi đăng nhập không xác định';
               console.error(`❌ Lỗi đăng nhập cho ${profile.name}:`, errorMsg);
+              const errCode = loginError?.errCode || 'LOGIN_FAILED';
+              profileHadError = true;
+              firstErrorMsg = firstErrorMsg || errorMsg;
               errors.push({
                 profileId: profile.profile_id,
                 profileName: profile.name,
                 action: 'handleAutoLogin',
                 error: errorMsg,
+                errCode,
                 timestamp: new Date().toISOString(),
               });
+              markErrFlags(errCode);
+              markCache();
               // Tiếp tục vòng for sang profile tiếp theo
               continue;
             }
@@ -355,6 +431,7 @@ ipcMain.handle('launch-profile', async (_event, data) => {
 
           // THAY ĐỔI THÔNG TIN
           if (data.isAutoChange) {
+            changeSuccess = true;
             //Tải backup code
             try {
               await handleDownloadBackUpCode(page, profile);
@@ -366,13 +443,19 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                 `❌ Lỗi tải backup code cho ${profile.name}:`,
                 errorMsg
               );
+              const errCode = backupError?.errCode || 'BACKUP_DOWNLOAD_FAILED';
+              changeSuccess = false;
+              profileHadError = true;
+              firstErrorMsg = firstErrorMsg || errorMsg;
               errors.push({
                 profileId: profile.profile_id,
                 profileName: profile.name,
                 action: 'handleDownloadBackUpCode',
                 error: errorMsg,
+                errCode,
                 timestamp: new Date().toISOString(),
               });
+              markErrFlags(errCode);
             }
             // // XOÁ SỐ ĐIỆN THOẠI
             try {
@@ -387,13 +470,19 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                 `❌ Lỗi xóa số điện thoại cho ${profile.name}:`,
                 errorMsg
               );
+              const errCode = phoneError?.errCode || 'PHONE_CHANGE_FAILED';
+              changeSuccess = false;
+              profileHadError = true;
+              firstErrorMsg = firstErrorMsg || errorMsg;
               errors.push({
                 profileId: profile.profile_id,
                 profileName: profile.name,
                 action: 'handleAutoChangePhone',
                 error: errorMsg,
+                errCode,
                 timestamp: new Date().toISOString(),
               });
+              markErrFlags(errCode);
             }
             // // THAY ĐỔI EMAIL
             try {
@@ -406,13 +495,19 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                 `❌ Lỗi thay đổi email cho ${profile.name}:`,
                 errorMsg
               );
+              const errCode = emailError?.errCode || 'EMAIL_CHANGE_FAILED';
+              changeSuccess = false;
+              profileHadError = true;
+              firstErrorMsg = firstErrorMsg || errorMsg;
               errors.push({
                 profileId: profile.profile_id,
                 profileName: profile.name,
                 action: 'handleAutoChangeEmail',
                 error: errorMsg,
+                errCode,
                 timestamp: new Date().toISOString(),
               });
+              markErrFlags(errCode);
             }
             // // THAY ĐỔI MẬT KHẨU
             try {
@@ -427,39 +522,62 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                 `❌ Lỗi thay đổi mật khẩu cho ${profile.name}:`,
                 errorMsg
               );
+              const errCode = pwdError?.errCode || 'PASSWORD_CHANGE_FAILED';
+              changeSuccess = false;
+              profileHadError = true;
+              firstErrorMsg = firstErrorMsg || errorMsg;
               errors.push({
                 profileId: profile.profile_id,
                 profileName: profile.name,
                 action: 'handleAutoChangePassword',
                 error: errorMsg,
+                errCode,
                 timestamp: new Date().toISOString(),
               });
+              markErrFlags(errCode);
             }
           }
+
+          // Cập nhật cache sau khi hoàn tất profile (trường hợp thành công)
+          markCache();
           console.log(`✅ Hoàn tất thao tác cho profile: ${profile.name}`);
         } else {
-          const errorMsg = `Không thể mở profile: ${openRes.data.message}`;
+          const errorMsg = `Không thể mở profile: ${
+            openRes?.data?.error?.message ||
+            openRes?.data?.message ||
+            'Không rõ lỗi'
+          }`;
           console.error(`❌ ${errorMsg}`);
           errors.push({
             profileId: profile.profile_id,
             profileName: profile.name,
             action: 'profile-open',
             error: errorMsg,
+            errCode: 'PROFILE_OPEN_FAILED',
             timestamp: new Date().toISOString(),
           });
+          profileHadError = true;
+          firstErrorMsg = firstErrorMsg || errorMsg;
+          markCache();
         }
       } catch (profileError: any) {
         // Catch lỗi xảy ra trong xử lý từng profile
         const errorMsg =
           profileError.message || 'Lỗi xử lý profile không xác định';
         console.error(`❌ Lỗi xử lý profile ${profile.name}:`, errorMsg);
+        const errCode = profileError?.errCode || 'PROFILE_GENERAL_ERROR';
+        profileHadError = true;
+        firstErrorMsg = firstErrorMsg || errorMsg;
         errors.push({
           profileId: profile.profile_id,
           profileName: profile.name,
           action: 'general',
           error: errorMsg,
+          errCode,
           timestamp: new Date().toISOString(),
         });
+        markErrFlags(errCode);
+        markCache();
         // Tiếp tục vòng for sang profile tiếp theo
         continue;
       } finally {
@@ -561,7 +679,7 @@ ipcMain.handle('launch-profile', async (_event, data) => {
   }
 });
 
-ipcMain.handle('get-profile-list', async (event, { page, limit }) => {
+ipcMain.handle('get-profile-list', async (_event, { page, limit }) => {
   const cachedProfiles = readProfileCache();
 
   try {
