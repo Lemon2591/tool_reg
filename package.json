@@ -87,7 +87,7 @@
         "dmg",
         "zip"
       ],
-      "icon": "public/logo.png",
+      "icon": "build/icon.icns",
       "category": "public.app-category.utilities"
     }
   }

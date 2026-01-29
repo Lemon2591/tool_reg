@@ -338,7 +338,7 @@ export const handleAutoLogin = async (
 
   if (isLoggedIn) {
     console.log('✅ Đã đăng nhập sẵn. Bỏ qua bước login.');
-    return;
+    // return;
   }
 
   try {
@@ -349,30 +349,70 @@ export const handleAutoLogin = async (
         { errCode: 'ROBOT' }
       );
     }
-    // Nhập email
-    console.log('📧 Đang nhập email...');
-    await typeLikeHuman(page, 'input[type="email"]', profile.username);
-    await page.click('#identifierNext');
 
-    // Chờ trang mật khẩu load
-    await delay(10000);
+    const isSavedAccountSelected = await page.evaluate((targetEmail: any) => {
+      // Tìm trực tiếp phần tử div chứa data-email khớp với email của profile
+      const selector = `div[data-email="${targetEmail}"], div[data-identifier="${targetEmail}"]`;
+      const accountItem = document.querySelector(selector) as any;
 
-    const hasRobotAfterEmail = await isRobotChallengePresent(page);
-    if (hasRobotAfterEmail) {
+      if (accountItem) {
+        // Nếu tìm thấy, chúng ta cần click vào phần tử cha hoặc chính nó
+        // (Google cho phép click vào toàn bộ khối li/div bao quanh)
+        accountItem.click();
+        return true;
+      }
+
+      // Trường hợp dự phòng: Tìm trong toàn bộ text nếu data-email bị ẩn
+      const allLinks = Array.from(
+        document.querySelectorAll('div[role="link"]')
+      );
+      const fallbackTarget = allLinks.find(
+        (el: any) =>
+          el.textContent?.toLowerCase().includes(targetEmail.toLowerCase())
+      ) as any;
+
+      if (fallbackTarget) {
+        fallbackTarget.click();
+        return true;
+      }
+
+      return false;
+    }, profile.username);
+
+    if (isSavedAccountSelected) {
+      console.log('✅ Đã tìm thấy và click vào tài khoản cũ.');
+    } else {
+      // 2. Nếu không thấy, mới nhập email như cũ
+      console.log('📧 Tài khoản chưa có sẵn, tiến hành nhập email...');
+      await typeLikeHuman(page, 'input[type="email"]', profile.username);
+      await page.click('#identifierNext');
+    }
+
+    // Chờ trang mật khẩu load (thay delay cứng bằng waitForSelector)
+    const pwdField = await page
+      .waitForSelector('input[type="password"]', {
+        visible: true,
+        timeout: 15000,
+      })
+      .catch(() => null);
+
+    if (!pwdField) {
+      const hasRobotAfterEmail = await isRobotChallengePresent(page);
+      if (hasRobotAfterEmail) {
+        throw Object.assign(
+          new Error('Lỗi robot: yêu cầu xác minh người dùng.'),
+          { errCode: 'ROBOT' }
+        );
+      }
       throw Object.assign(
-        new Error('Lỗi robot: yêu cầu xác minh người dùng.'),
-        { errCode: 'ROBOT' }
+        new Error('Không tìm thấy ô mật khẩu sau bước email'),
+        { errCode: 'ELEMENT' }
       );
     }
 
     // Kiểm tra và nhập mật khẩu
     try {
-      await page.waitForSelector('input[type="password"]', {
-        visible: true,
-        timeout: 7000,
-      });
       console.log('🔑 Đang nhập mật khẩu...');
-      console.log(profile.password, 'Mật khẩu sắp điền');
       await typeLikeHuman(page, 'input[type="password"]', profile.password);
       await page.click('#passwordNext');
     } catch (pwdError) {
@@ -384,7 +424,28 @@ export const handleAutoLogin = async (
       );
     }
 
-    await delay(5000);
+    // Chờ một trong các trạng thái sau mật khẩu: navigation, 2FA, hoặc robot challenge
+    await Promise.race([
+      page
+        .waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 })
+        .catch(() => null),
+      page
+        .waitForSelector('input[type="tel"], #totpPin, input[name="totpPin"]', {
+          visible: true,
+          timeout: 20000,
+        })
+        .catch(() => null),
+    ]);
+
+    const hasRobotAfterPwd = await isRobotChallengePresent(page);
+    if (hasRobotAfterPwd) {
+      throw Object.assign(
+        new Error(
+          'Lỗi robot: yêu cầu xác minh người dùng sau khi nhập mật khẩu.'
+        ),
+        { errCode: 'ROBOT' }
+      );
+    }
 
     // Xử lý 2FA nếu có
     const has2FA = await typing2FA(page, profile);

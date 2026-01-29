@@ -1,4 +1,4 @@
-import { createBrowserRouter, useLocation, Navigate } from 'react-router-dom';
+import { createHashRouter, useLocation, Navigate } from 'react-router-dom';
 import React, { useEffect } from 'react';
 import publicRouter from './publicRoutes/index.tsx';
 import privateRouter from './privateRoutes/index.tsx';
@@ -24,7 +24,7 @@ export const ScrollToTop: React.FC = () => {
 
 // Create the router
 
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: '/',
     element: <RequireAuth />, // Bọc private route

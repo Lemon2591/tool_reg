@@ -184,22 +184,16 @@ const createWindow = () => {
             contextIsolation: true,
         },
     });
-    // Dev dùng Vite server, build dùng bundle dist/index.html
     const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173/';
     if (!app.isPackaged) {
         win.loadURL(devServerUrl);
     }
     else {
-        // Khi đóng gói, dist và dist-electron nằm cạnh nhau trong resources/app.asar
-        const rootPath = app.isPackaged
-            ? process.resourcesPath
-            : path.resolve(__dirname, '..');
-        const indexPath = path.join(rootPath, 'dist', 'index.html');
+        const indexPath = path.join(app.getAppPath(), // trỏ thẳng vào app.asar
+        'dist', 'index.html');
+        console.log('📦 Load index từ:', indexPath);
         if (!fs.existsSync(indexPath)) {
-            console.error('❌ Không tìm thấy dist/index.html tại', indexPath);
-        }
-        else {
-            console.log('✅ Load renderer từ', indexPath);
+            console.error('❌ Không tìm thấy dist/index.html:', indexPath);
         }
         win.loadFile(indexPath);
     }
@@ -472,29 +466,43 @@ ipcMain.handle('launch-profile', async (_event, data) => {
             }
             finally {
                 // Đóng trình duyệt sau khi xử lý xong mỗi profile (kể cả lỗi)
-                if (browser) {
-                    try {
-                        await browser.close();
-                        console.log(`🚪 Đã đóng trình duyệt cho profile: ${profile.name}`);
-                    }
-                    catch (closeErr) {
-                        console.error('⚠️ Lỗi khi đóng trình duyệt:', closeErr.message || closeErr);
-                    }
-                }
-                try {
-                    const response = await axios.post(`${IX_API_BASE}/api/v2/profile-close`, {
-                        profile_id: profile.profile_id,
-                    }, { timeout: 15000 });
-                    if (response?.data?.code === 0) {
-                        console.log(`✅ ixBrowser API: Đã giải phóng Profile [${profile.name}] thành công.`);
-                    }
-                    else {
-                        console.warn(`⚠️ ixBrowser API cảnh báo: ${response?.data?.message || 'Không rõ lỗi'}`);
-                    }
-                }
-                catch (apiErr) {
-                    console.error(`❌ Không thể gửi API đóng tới ixBrowser: ${apiErr?.message || apiErr}`);
-                }
+                // if (browser) {
+                //   try {
+                //     await browser.close();
+                //     console.log(`🚪 Đã đóng trình duyệt cho profile: ${profile.name}`);
+                //   } catch (closeErr: any) {
+                //     console.error(
+                //       '⚠️ Lỗi khi đóng trình duyệt:',
+                //       closeErr.message || closeErr
+                //     );
+                //   }
+                // }
+                // try {
+                //   const response = await axios.post(
+                //     `${IX_API_BASE}/api/v2/profile-close`,
+                //     {
+                //       profile_id: profile.profile_id,
+                //     },
+                //     { timeout: 15000 }
+                //   );
+                //   if (response?.data?.code === 0) {
+                //     console.log(
+                //       `✅ ixBrowser API: Đã giải phóng Profile [${profile.name}] thành công.`
+                //     );
+                //   } else {
+                //     console.warn(
+                //       `⚠️ ixBrowser API cảnh báo: ${
+                //         response?.data?.message || 'Không rõ lỗi'
+                //       }`
+                //     );
+                //   }
+                // } catch (apiErr: any) {
+                //   console.error(
+                //     `❌ Không thể gửi API đóng tới ixBrowser: ${
+                //       apiErr?.message || apiErr
+                //     }`
+                //   );
+                // }
                 // 3. Nghỉ một khoảng ngắn (2-3s) trước khi chuyển sang Profile tiếp theo
                 // Việc này giúp tránh lỗi "Profile is already running" do ixBrowser chưa kịp dọn dẹp xong tiến trình ngầm
                 await delay(2500);
