@@ -1,5 +1,92 @@
 import { generate } from 'otplib';
+import { createCursor } from 'ghost-cursor';
 declare const document: any;
+declare const window: any;
+
+/**
+ * Di chuyển chuột theo đường cong và click vào điểm ngẫu nhiên trên Element
+ * Sử dụng ghost-cursor để mô phỏng hành động người dùng thực
+ * @param page Puppeteer page object
+ * @param selector CSS selector của element cần click
+ * @throws Error nếu click thất bại
+ */
+export const smartClick = async (
+  page: any,
+  selector: string
+): Promise<void> => {
+  try {
+    // Đợi selector xuất hiện và hiển thị
+    await page.waitForSelector(selector, { visible: true, timeout: 10000 });
+
+    // Hover trước (con người luôn hover trước khi click)
+    await hoverElement(page, selector);
+
+    // Hesitation trước click (do dự tí)
+    await hesitation(0.25, 300, 800);
+
+    // Lấy tọa độ và kích thước thực tế (tính cả việc scroll)
+    const rect = await page.evaluate((sel: string) => {
+      const el = document.querySelector(sel) as any;
+      if (!el) return null;
+      const { top, left, width, height } = el.getBoundingClientRect();
+      return {
+        x: left + window.scrollX,
+        y: top + window.scrollY,
+        width,
+        height,
+      };
+    }, selector);
+
+    if (!rect || rect.width === 0 || rect.height === 0) {
+      throw new Error(`Element ${selector} không có kích thước hợp lệ`);
+    }
+
+    // Tính toán điểm click ngẫu nhiên (tránh sát mép nút, vào giữa tự nhiên hơn)
+    const padding = 8;
+    const clickX =
+      rect.x + padding + Math.random() * (rect.width - padding * 2);
+    const clickY =
+      rect.y + padding + Math.random() * (rect.height - padding * 2);
+
+    // Tạo ghost-cursor và di chuyển đến điểm click
+    const cursor = await createCursor(page);
+    await cursor.moveTo({
+      x: Math.round(clickX),
+      y: Math.round(clickY),
+    });
+
+    // Wobble nhỏ trước click (rung tí như người gõ không chính xác)
+    await page.mouse.move(
+      Math.round(clickX + randomBetween(-2, 2)),
+      Math.round(clickY + randomBetween(-2, 2))
+    );
+    await delay(50);
+
+    // Thực hiện click vật lý bằng chuột
+    await page.mouse.down();
+    await delay(Math.random() * 80 + 40); // Giữ chuột 40-120ms (tăng từ 30-80)
+    await page.mouse.up();
+
+    // Pause nhỏ sau click
+    await delay(randomBetween(200, 500));
+
+    console.log(`✅ Smart Click thành công vào: ${selector}`);
+  } catch (error) {
+    console.error(`❌ Lỗi Smart Click: ${(error as Error).message}`);
+    // Fallback đơn giản sang page.click()
+    try {
+      await page.click(selector);
+      console.log(`⚠️  Fallback: Dùng click() thường cho: ${selector}`);
+    } catch (fallbackError) {
+      throw Object.assign(
+        new Error(
+          `Không thể click vào ${selector}: ${(fallbackError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
+      );
+    }
+  }
+};
 
 /**
  * Hàm tạo mật khẩu ngẫu nhiên bảo mật
@@ -36,6 +123,49 @@ export const generateRandomPassword = (length: number = 12): string => {
 
 export const delay = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
+
+const randomBetween = (min: number, max: number) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
+
+// Các delay để mô phỏng hành động người dùng thực
+const longDelay = (min = 800, max = 2000) => delay(randomBetween(min, max));
+const readingDelay = (min = 1500, max = 3500) => delay(randomBetween(min, max));
+
+/**
+ * Random pause để giả lập do dự/suy nghĩ
+ */
+const hesitation = async (probability = 0.3, min = 600, max = 1500) => {
+  if (Math.random() < probability) {
+    await delay(randomBetween(min, max));
+  }
+};
+
+const scrollIntoViewIfNeeded = async (page: any, selector: string) => {
+  try {
+    await page.evaluate((sel: any) => {
+      const el = document.querySelector(sel) as any | null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, selector);
+    // Pause sau scroll để mô phỏng người xem
+    await delay(randomBetween(300, 600));
+  } catch (err) {
+    // Ignore scroll failures to avoid hard stops
+  }
+};
+
+/**
+ * Hover chuột trên element (giả lập con người di chuột trước khi click)
+ */
+const hoverElement = async (page: any, selector: string) => {
+  try {
+    await page.hover(selector);
+    await delay(randomBetween(200, 500)); // Linger một tí
+  } catch (err) {
+    // Ignore hover errors
+  }
+};
 
 /**
  * Kiểm tra xem có phải lỗi mạng không
@@ -183,6 +313,8 @@ export const typing2FA = async (page: any, profile: any): Promise<boolean> => {
       return false;
     }
 
+    await readingDelay(1500, 2500); // Đọc trang 2FA trước nhập
+
     await is2FAPage.click();
     console.log('✅ Phát hiện trang 2FA. Đang tiến hành giải mã...');
 
@@ -200,7 +332,9 @@ export const typing2FA = async (page: any, profile: any): Promise<boolean> => {
       secret: secretKey.replace(/\s/g, ''),
     });
 
+    await hesitation(0.3, 400, 900); // Do dự trước nhập 2FA
     await typeLikeHuman(page, otpInputSelector, token);
+    await longDelay(400, 1000); // Chờ trước press Enter
     await page.keyboard.press('Enter');
 
     console.log(`✅ Đã điền mã 2FA: ${token}`);
@@ -285,6 +419,10 @@ export const typeLikeHuman = async (
     );
   }
 
+  await scrollIntoViewIfNeeded(page, selector);
+  await hesitation(0.4, 300, 800); // Do dự trước khi gõ
+
+  let typedCount = 0;
   for (const char of text) {
     try {
       await page.keyboard.sendCharacter(char);
@@ -298,8 +436,25 @@ export const typeLikeHuman = async (
         { errCode: 'ELEMENT' }
       );
     }
-    await delay(Math.floor(Math.random() * 100) + 50);
+
+    // Delay giữa mỗi ký tự: 100-250ms (con người)
+    await delay(randomBetween(100, 250));
+
+    typedCount += 1;
+
+    // Random pause mỗi 5-10 ký tự (không pattern cố định 4-6)
+    const pauseInterval = randomBetween(5, 10);
+    if (typedCount % pauseInterval === 0) {
+      // Pause random giữa gõ (người thường pause để suy nghĩ)
+      await delay(randomBetween(300, 800));
+    }
+
+    // Thỉnh thoảng pause lâu hơn (sau vài ký tự)
+    await hesitation(0.2, 500, 1200);
   }
+
+  // Pause sau khi gõ xong trước khi action tiếp theo
+  await delay(randomBetween(200, 500));
 };
 
 /**
@@ -338,7 +493,7 @@ export const handleAutoLogin = async (
 
   if (isLoggedIn) {
     console.log('✅ Đã đăng nhập sẵn. Bỏ qua bước login.');
-    // return;
+    return;
   }
 
   try {
@@ -349,6 +504,8 @@ export const handleAutoLogin = async (
         { errCode: 'ROBOT' }
       );
     }
+
+    await readingDelay(1500, 2500); // Đọc trang login
 
     const isSavedAccountSelected = await page.evaluate((targetEmail: any) => {
       // Tìm trực tiếp phần tử div chứa data-email khớp với email của profile
@@ -381,11 +538,15 @@ export const handleAutoLogin = async (
 
     if (isSavedAccountSelected) {
       console.log('✅ Đã tìm thấy và click vào tài khoản cũ.');
+      await readingDelay(2000, 3500); // Đợi page update
     } else {
       // 2. Nếu không thấy, mới nhập email như cũ
       console.log('📧 Tài khoản chưa có sẵn, tiến hành nhập email...');
+      await scrollIntoViewIfNeeded(page, 'input[type="email"]');
+      await hesitation(0.3, 400, 900); // Do dự trước khi nhập email
       await typeLikeHuman(page, 'input[type="email"]', profile.username);
-      await page.click('#identifierNext');
+      await longDelay(400, 1200); // Chờ trước khi click Next
+      await smartClick(page, '#identifierNext');
     }
 
     // Chờ trang mật khẩu load (thay delay cứng bằng waitForSelector)
@@ -410,11 +571,17 @@ export const handleAutoLogin = async (
       );
     }
 
+    // Reading delay sau khi trang password load
+    await readingDelay(1500, 2800);
+
     // Kiểm tra và nhập mật khẩu
     try {
       console.log('🔑 Đang nhập mật khẩu...');
+      await scrollIntoViewIfNeeded(page, 'input[type="password"]');
+      await hesitation(0.3, 500, 1000); // Do dự trước khi nhập password
       await typeLikeHuman(page, 'input[type="password"]', profile.password);
-      await page.click('#passwordNext');
+      await longDelay(500, 1500); // Chờ trước khi click Next
+      await smartClick(page, '#passwordNext');
     } catch (pwdError) {
       throw Object.assign(
         new Error(
@@ -436,6 +603,8 @@ export const handleAutoLogin = async (
         })
         .catch(() => null),
     ]);
+
+    await readingDelay(2000, 3500); // Đọc trang tiếp theo
 
     const hasRobotAfterPwd = await isRobotChallengePresent(page);
     if (hasRobotAfterPwd) {
@@ -538,7 +707,8 @@ export const handleAutoChangePhone = async (
 
     // Click để vào trang quản lý số điện thoại
     try {
-      await page.click(recoveryPhoneSelector);
+      await readingDelay(1000, 2000); // Đọc trang trước khi click
+      await smartClick(page, recoveryPhoneSelector);
     } catch (clickError) {
       throw Object.assign(
         new Error(
@@ -578,7 +748,7 @@ export const handleAutoChangePhone = async (
     console.log('🔒 Kiểm tra re-authentication...');
     if (page.url().includes('v3/signin/challenge/pwd')) {
       console.log('🔑 Google yêu cầu xác minh lại mật khẩu...');
-      await delay(2000);
+      await readingDelay(1500, 2500); // Đọc thông báo yêu cầu
       try {
         await typeLikeHuman(page, 'input[type="password"]', profile.password);
       } catch (typingError) {
@@ -589,6 +759,7 @@ export const handleAutoChangePhone = async (
           { errCode: 'ELEMENT' }
         );
       }
+      await longDelay(400, 1000); // Chờ trước khi press Enter
       await page.keyboard.press('Enter');
       try {
         await page.waitForNavigation({
@@ -604,7 +775,7 @@ export const handleAutoChangePhone = async (
         );
       }
 
-      await delay(5000);
+      await readingDelay(2000, 3500); // Đọc trang tiếp theo trước 2FA
       try {
         await typing2FA(page, profile);
       } catch (twoFAError) {
@@ -634,7 +805,8 @@ export const handleAutoChangePhone = async (
       return;
     }
     try {
-      await page.click(deleteBtnSelector);
+      await readingDelay(1000, 2000); // Đọc trước khi click delete
+      await smartClick(page, deleteBtnSelector);
     } catch (clickDeleteError) {
       throw Object.assign(
         new Error(
@@ -646,6 +818,7 @@ export const handleAutoChangePhone = async (
 
     // 5. XÁC NHẬN XOÁ (Confirm Dialog)
     console.log('⏳ Đang chờ nút xác nhận xóa...');
+    await readingDelay(800, 1500); // Đợi dialog hiển thị + đọc nội dung
     try {
       await page.waitForFunction(
         () => {
@@ -670,6 +843,7 @@ export const handleAutoChangePhone = async (
     }
 
     // Click nút xác nhận
+    await hesitation(0.35, 300, 600); // Do dự trước confirm
     const confirmClicked = await page.evaluate(() => {
       const elements = Array.from(
         document.querySelectorAll('span.snByac, div[role="button"]')
@@ -693,6 +867,8 @@ export const handleAutoChangePhone = async (
         errCode: 'ELEMENT',
       });
     }
+
+    await readingDelay(1500, 2500); // Đợi action hoàn tất + confirm close
 
     console.log('✅ Đã xác nhận xóa số điện thoại thành công.');
   } catch (error: any) {
@@ -755,12 +931,15 @@ export const handleAutoChangeEmail = async (
       );
     }
 
+    await readingDelay(1500, 2500); // Đọc trang Security
+
     // 2. Tìm thẻ <a> dẫn đến trang quản lý Email khôi phục
     const recoveryEmailSelector = 'a[href*="recovery/email"]';
     console.log('🔍 Đang tìm Recovery Email link...');
     try {
+      await readingDelay(1000, 2000); // Tìm link trước khi click
       await Promise.all([
-        page.click(recoveryEmailSelector),
+        smartClick(page, recoveryEmailSelector),
         page.waitForNavigation({
           waitUntil: 'networkidle2',
           timeout: 60000,
@@ -777,6 +956,8 @@ export const handleAutoChangeEmail = async (
       );
     }
 
+    await readingDelay(1500, 2500); // Đọc trang Recovery Email
+
     // --- BƯỚC 1: KIỂM TRA MẬT KHẨU ---
     console.log('🔑 Kiểm tra màn hình nhập mật khẩu...');
     const passwordInput = await page
@@ -789,6 +970,7 @@ export const handleAutoChangeEmail = async (
     if (passwordInput) {
       console.log('==> Phát hiện màn hình nhập mật khẩu.');
       try {
+        await hesitation(0.3, 400, 900); // Do dự trước nhập password
         await typeLikeHuman(page, 'input[type="password"]', profile.password);
       } catch (typingError) {
         throw Object.assign(
@@ -800,6 +982,7 @@ export const handleAutoChangeEmail = async (
       }
 
       try {
+        await longDelay(400, 1200); // Chờ trước press Enter
         await Promise.all([
           page.keyboard.press('Enter'),
           page.waitForNavigation({
@@ -815,7 +998,7 @@ export const handleAutoChangeEmail = async (
           { errCode: 'NETWORK' }
         );
       }
-      await delay(2000);
+      await readingDelay(1500, 2500); // Đọc trang tiếp theo trước 2FA
     }
 
     // --- BƯỚC 2: KIỂM TRA 2FA ---
@@ -824,6 +1007,7 @@ export const handleAutoChangeEmail = async (
       const has2FA = await typing2FA(page, profile);
       if (has2FA) {
         console.log('✅ 2FA đã được xử lý');
+        await readingDelay(1500, 2500); // Đọc sau 2FA
       }
     } catch (twoFAError) {
       throw Object.assign(
@@ -834,6 +1018,7 @@ export const handleAutoChangeEmail = async (
 
     // --- BƯỚC 3: KIỂM TRA MÀN HÌNH CUỐI ---
     console.log('⏳ Đang chờ nút Edit recovery email...');
+    await readingDelay(1000, 2000); // Đọc trước khi tìm button
     try {
       await page.waitForFunction(
         () => {
@@ -856,6 +1041,7 @@ export const handleAutoChangeEmail = async (
     }
 
     // Click nút Edit
+    await hesitation(0.35, 300, 700); // Do dự trước click edit
     const editClicked = await page.evaluate(() => {
       const editBtn = document.querySelector(
         'button[aria-label*="Edit recovery email"], button[aria-label*="Chỉnh sửa email"]'
@@ -875,6 +1061,8 @@ export const handleAutoChangeEmail = async (
     }
 
     console.log('✅ Đã click vào nút thay đổi Email.');
+
+    await readingDelay(1000, 1800); // Đợi dialog/input hiển thị + đọc
 
     // Đợi màn hình nhập Email mới hiện ra
     const emailInputSelector = 'input[type="email"][jsname="YPqjbf"]';
@@ -903,8 +1091,9 @@ export const handleAutoChangeEmail = async (
 
     // Focus và xóa sạch ô input
     try {
+      await hesitation(0.3, 300, 700); // Do dự trước khi clear
       await page.focus(emailInputSelector);
-      await page.click(emailInputSelector, { clickCount: 3 });
+      await smartClick(page, emailInputSelector);
       await page.keyboard.press('Backspace');
       const currentVal = await page.$eval(
         emailInputSelector,
@@ -916,6 +1105,7 @@ export const handleAutoChangeEmail = async (
         await page.keyboard.up('Control');
         await page.keyboard.press('Backspace');
       }
+      await delay(randomBetween(200, 400)); // Pause sau clear
     } catch (focusError) {
       throw Object.assign(
         new Error(
@@ -927,6 +1117,7 @@ export const handleAutoChangeEmail = async (
 
     // Nhập email mới
     try {
+      await hesitation(0.35, 400, 900); // Do dự trước nhập email mới
       await typeLikeHuman(page, emailInputSelector, newEmail);
     } catch (typingError) {
       throw Object.assign(
@@ -942,6 +1133,8 @@ export const handleAutoChangeEmail = async (
 
     // Click vào nút Save
     console.log('💾 Đang click nút Save...');
+    await readingDelay(800, 1500); // Đọc email vừa nhập trước save
+    await hesitation(0.35, 300, 700); // Do dự trước click save
     const saveClicked = await page.evaluate((sel: any) => {
       const btn = document.querySelector(sel) as any;
       if (btn) {
@@ -967,6 +1160,8 @@ export const handleAutoChangeEmail = async (
     }
 
     console.log('✅ Đã click nút Save thành công.');
+
+    await readingDelay(1500, 2500); // Đợi response + confirm dialog
 
     try {
       const cancelBtnSelector = 'button[data-mdc-dialog-action="cancel"]';
@@ -1090,6 +1285,8 @@ export const handleAutoChangePassword = async (
       );
     }
 
+    await readingDelay(1500, 2500); // Đọc trang Security
+
     // 2. Tìm mục Password
     const passwordLinkSelector = 'a[href*="signinoptions/password"]';
 
@@ -1117,8 +1314,9 @@ export const handleAutoChangePassword = async (
     // 3. Click để vào trang đổi mật khẩu
     console.log('🔑 Đang click vào mục Password...');
     try {
+      await readingDelay(1000, 2000); // Tìm link trước click
       await Promise.all([
-        page.click(passwordLinkSelector),
+        smartClick(page, passwordLinkSelector),
         page.waitForNavigation({
           waitUntil: 'networkidle2',
           timeout: 30000,
@@ -1139,6 +1337,8 @@ export const handleAutoChangePassword = async (
 
     console.log('✅ Đã nhấn vào mục Password.');
 
+    await readingDelay(1500, 2500); // Đọc trang đổi mật khẩu
+
     // BƯỚC 1: KIỂM TRA MẬT KHẨU RE-AUTHENTICATION
     console.log('🔑 Kiểm tra màn hình nhập mật khẩu...');
     const passwordInput = await page
@@ -1151,6 +1351,8 @@ export const handleAutoChangePassword = async (
     if (passwordInput) {
       console.log('==> Phát hiện màn hình nhập mật khẩu.');
       try {
+        await readingDelay(1000, 1800); // Đọc trước nhập
+        await hesitation(0.3, 400, 900); // Do dự
         await typeLikeHuman(page, 'input[type="password"]', profile.password);
       } catch (typingError) {
         throw Object.assign(
@@ -1164,6 +1366,7 @@ export const handleAutoChangePassword = async (
       }
 
       try {
+        await longDelay(400, 1000); // Chờ trước press Enter
         await Promise.all([
           page.keyboard.press('Enter'),
           page.waitForNavigation({
@@ -1181,7 +1384,7 @@ export const handleAutoChangePassword = async (
           }
         );
       }
-      await delay(2000);
+      await readingDelay(1500, 2500); // Đọc trang tiếp theo
     }
 
     // BƯỚC 2: KIỂM TRA 2FA
@@ -1190,6 +1393,7 @@ export const handleAutoChangePassword = async (
       const has2FA = await typing2FA(page, profile);
       if (has2FA) {
         console.log('✅ 2FA đã được xử lý');
+        await readingDelay(1500, 2500); // Đọc sau 2FA
       }
     } catch (twoFAError) {
       throw Object.assign(
@@ -1202,6 +1406,7 @@ export const handleAutoChangePassword = async (
 
     // BƯỚC 3: NHẬP MẬT KHẨU MỚI
     console.log('🔑 Chờ input mật khẩu mới...');
+    await readingDelay(1000, 2000); // Đọc form trước
     const newPwdSelector = 'input[name="password"]';
     const confirmPwdSelector = 'input[name="confirmation_password"]';
 
@@ -1231,9 +1436,11 @@ export const handleAutoChangePassword = async (
     console.log(`📝 Mật khẩu mới: ${newPass}`);
 
     try {
+      await hesitation(0.3, 400, 900); // Do dự trước nhập password mới
       await page.focus(newPwdSelector);
       await typeLikeHuman(page, newPwdSelector, newPass);
-      await delay(1000);
+      await longDelay(800, 1500); // Pause sau password đầu tiên, suy nghĩ trước confirm
+      await hesitation(0.35, 400, 800); // Do dự trước nhập confirm password
       await page.focus(confirmPwdSelector);
       await typeLikeHuman(page, confirmPwdSelector, newPass);
     } catch (typingError) {
@@ -1249,6 +1456,8 @@ export const handleAutoChangePassword = async (
 
     // BƯỚC 4: CLICK NÚT SUBMIT
     console.log('🖱️  Đang định vị nút xác nhận...');
+    await readingDelay(1000, 1800); // Đọc form trước submit
+    await hesitation(0.35, 300, 700); // Do dự trước click submit
     const TARGET_JSNAME = 'Pr7Yme';
     const VALID_TEXT_LOOKUP = [
       'Change password',
@@ -1370,6 +1579,8 @@ export const handleDownloadBackUpCode = async (
       );
     }
 
+    await readingDelay(1500, 2500); // Đọc trang Security
+
     // 2. Tìm và click link Backup Codes
     const backupLinkSelector = 'a[href*="backup-codes"]';
 
@@ -1393,8 +1604,9 @@ export const handleDownloadBackUpCode = async (
     }
 
     try {
+      await readingDelay(1000, 2000); // Tìm link trước click
       await Promise.all([
-        page.click(backupLinkSelector),
+        smartClick(page, backupLinkSelector),
         page.waitForNavigation({
           waitUntil: 'networkidle2',
           timeout: 30000,
@@ -1415,6 +1627,8 @@ export const handleDownloadBackUpCode = async (
 
     console.log('✅ Đã click vào link Backup Codes.');
 
+    await readingDelay(1500, 2500); // Đọc trang backup codes
+
     // 3. KIỂM TRA MẬT KHẨU
     console.log('🔑 Kiểm tra màn hình nhập mật khẩu...');
     const passwordInput = await page.$('input[type="password"]');
@@ -1422,6 +1636,8 @@ export const handleDownloadBackUpCode = async (
     if (passwordInput) {
       console.log('==> Phát hiện cần nhập lại mật khẩu.');
       try {
+        await readingDelay(1000, 1800); // Đọc trước nhập
+        await hesitation(0.3, 400, 900); // Do dự
         await typeLikeHuman(page, 'input[type="password"]', profile.password);
       } catch (typingError) {
         throw Object.assign(
@@ -1435,6 +1651,7 @@ export const handleDownloadBackUpCode = async (
       }
 
       try {
+        await longDelay(400, 1000); // Chờ trước press Enter
         await Promise.all([
           page.keyboard.press('Enter'),
           page.waitForNavigation({
@@ -1453,7 +1670,7 @@ export const handleDownloadBackUpCode = async (
         );
       }
 
-      await delay(2000);
+      await readingDelay(1500, 2500); // Đọc trang tiếp theo
     }
 
     // 4. KIỂM TRA 2FA
@@ -1462,6 +1679,7 @@ export const handleDownloadBackUpCode = async (
       const has2FA = await typing2FA(page, profile);
       if (has2FA) {
         console.log('✅ 2FA đã được xử lý');
+        await readingDelay(1500, 2500); // Đọc sau 2FA
       }
     } catch (twoFAError) {
       throw Object.assign(
@@ -1474,6 +1692,7 @@ export const handleDownloadBackUpCode = async (
 
     // 5. CLICK NÚT "Get Backup Codes"
     console.log('⏳ Đang chờ nút "Get Backup Codes"...');
+    await readingDelay(1000, 2000); // Đọc trang trước tìm button
     try {
       await page.waitForFunction(
         () => {
@@ -1503,6 +1722,7 @@ export const handleDownloadBackUpCode = async (
       );
     }
 
+    await hesitation(0.35, 300, 700); // Do dự trước click get codes
     const getCodesClicked = await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
       const targetBtn = buttons.find((btn: any) => {
@@ -1529,10 +1749,11 @@ export const handleDownloadBackUpCode = async (
     }
 
     console.log('✅ Đã click nút "Get Backup Codes".');
-    await delay(2000);
+    await readingDelay(2000, 3500); // Đợi codes hiển thị + đọc
 
     // 6. CLICK NÚT "Download Codes"
     console.log('⏳ Đang chờ nút "Download Codes"...');
+    await readingDelay(1000, 2000); // Đọc trước tìm download button
     try {
       await page.waitForFunction(
         () => {
@@ -1561,6 +1782,7 @@ export const handleDownloadBackUpCode = async (
       );
     }
 
+    await hesitation(0.35, 300, 700); // Do dự trước click download
     const downloadClicked = await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
       const targetBtn = buttons.find((btn: any) => {
@@ -1586,7 +1808,7 @@ export const handleDownloadBackUpCode = async (
     }
 
     console.log('✅ Đã click nút "Download Codes".');
-    await delay(2000);
+    await readingDelay(1500, 2500); // Đợi file download hoàn tất
 
     console.log('✅ Đã hoàn thành tải mã backup thành công.');
   } catch (error: any) {

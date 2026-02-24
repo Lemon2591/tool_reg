@@ -32,6 +32,47 @@ const IX_API_BASE = 'http://127.0.0.1:53200';
 const PROFILE_CACHE_PATH = () =>
   path.join(app.getPath('userData'), 'profile-cache.json');
 
+const closeProfileSession = async (
+  browser: Browser | null,
+  profile: { profile_id: number; name: string }
+): Promise<void> => {
+  if (browser) {
+    try {
+      await browser.close();
+      console.log(`🚪 Đã đóng trình duyệt cho profile: ${profile.name}`);
+    } catch (closeErr: any) {
+      console.error(
+        '⚠️ Lỗi khi đóng trình duyệt:',
+        closeErr?.message || closeErr
+      );
+    }
+  }
+
+  try {
+    const response = await axios.post(
+      `${IX_API_BASE}/api/v2/profile-close`,
+      { profile_id: profile.profile_id },
+      { timeout: 15000 }
+    );
+
+    if (response?.data?.code === 0) {
+      console.log(
+        `✅ ixBrowser API: Đã giải phóng Profile [${profile.name}] thành công.`
+      );
+    } else {
+      console.warn(
+        `⚠️ ixBrowser API cảnh báo: ${
+          response?.data?.message || 'Không rõ lỗi'
+        }`
+      );
+    }
+  } catch (apiErr: any) {
+    console.error(
+      `❌ Không thể gửi API đóng tới ixBrowser: ${apiErr?.message || apiErr}`
+    );
+  }
+};
+
 /**
  * Loại lỗi theo action
  */
@@ -581,45 +622,8 @@ ipcMain.handle('launch-profile', async (_event, data) => {
         // Tiếp tục vòng for sang profile tiếp theo
         continue;
       } finally {
-        // Đóng trình duyệt sau khi xử lý xong mỗi profile (kể cả lỗi)
-        if (browser) {
-          try {
-            await browser.close();
-            console.log(`🚪 Đã đóng trình duyệt cho profile: ${profile.name}`);
-          } catch (closeErr: any) {
-            console.error(
-              '⚠️ Lỗi khi đóng trình duyệt:',
-              closeErr.message || closeErr
-            );
-          }
-        }
-        try {
-          const response = await axios.post(
-            `${IX_API_BASE}/api/v2/profile-close`,
-            {
-              profile_id: profile.profile_id,
-            },
-            { timeout: 15000 }
-          );
-
-          if (response?.data?.code === 0) {
-            console.log(
-              `✅ ixBrowser API: Đã giải phóng Profile [${profile.name}] thành công.`
-            );
-          } else {
-            console.warn(
-              `⚠️ ixBrowser API cảnh báo: ${
-                response?.data?.message || 'Không rõ lỗi'
-              }`
-            );
-          }
-        } catch (apiErr: any) {
-          console.error(
-            `❌ Không thể gửi API đóng tới ixBrowser: ${
-              apiErr?.message || apiErr
-            }`
-          );
-        }
+        // Đóng trình duyệt và giải phóng profile qua ixBrowser
+        await closeProfileSession(browser, profile);
 
         // 3. Nghỉ một khoảng ngắn (2-3s) trước khi chuyển sang Profile tiếp theo
         // Việc này giúp tránh lỗi "Profile is already running" do ixBrowser chưa kịp dọn dẹp xong tiến trình ngầm
