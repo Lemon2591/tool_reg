@@ -1858,3 +1858,272 @@ export const handleDownloadBackUpCode = async (
     );
   }
 };
+
+const dataAlert = [
+  { name: 'Taylor Swift', birth: 1989 },
+  { name: 'Beyoncé', birth: 1981 },
+  { name: 'LeBron James', birth: 1984 },
+  { name: 'Oprah Winfrey', birth: 1954 },
+  { name: 'Kim Kardashian', birth: 1980 },
+  { name: 'Elon Musk', birth: 1971 },
+  { name: 'Jeff Bezos', birth: 1964 },
+  { name: 'Mark Zuckerberg', birth: 1984 },
+  { name: 'Barack Obama', birth: 1961 },
+  { name: 'Donald Trump', birth: 1946 },
+  { name: 'Joe Biden', birth: 1942 },
+  { name: 'Michelle Obama', birth: 1964 },
+  { name: 'Kamala Harris', birth: 1964 },
+  { name: 'Tom Hanks', birth: 1956 },
+  { name: 'Jennifer Lopez', birth: 1969 },
+  { name: 'Justin Timberlake', birth: 1981 },
+  { name: 'Jennifer Hudson', birth: 1981 },
+  { name: 'Ariana Grande', birth: 1993 },
+  { name: 'Billie Eilish', birth: 2001 },
+  { name: 'Serena Williams', birth: 1981 },
+  { name: 'Simone Biles', birth: 1997 },
+  { name: 'Tiger Woods', birth: 1975 },
+  { name: 'Michael Jordan', birth: 1963 },
+  { name: 'Muhammad Ali', birth: 1942, death: 2016 },
+  { name: 'Kobe Bryant', birth: 1978, death: 2020 },
+  { name: 'Dwayne “The Rock” Johnson', birth: 1972 },
+  { name: 'Kevin Hart', birth: 1979 },
+  { name: 'Will Smith', birth: 1968 },
+  { name: 'Chris Evans', birth: 1981 },
+  { name: 'Robert Downey Jr.', birth: 1965 },
+  { name: 'Johnny Depp', birth: 1963 },
+  { name: 'Brad Pitt', birth: 1963 },
+  { name: 'Leonardo DiCaprio', birth: 1974 },
+  { name: 'Angelina Jolie', birth: 1975 },
+  { name: 'Scarlett Johansson', birth: 1984 },
+  { name: 'Denzel Washington', birth: 1954 },
+  { name: 'Meryl Streep', birth: 1949 },
+  { name: 'Tom Cruise', birth: 1962 },
+  { name: 'Madonna', birth: 1958 },
+  { name: 'Lady Gaga', birth: 1986 },
+  { name: 'Eminem', birth: 1972 },
+  { name: 'Kanye West', birth: 1977 },
+  { name: 'Kendrick Lamar', birth: 1987 },
+  { name: 'SZA', birth: 1990 },
+  { name: 'Rihanna', birth: 1988 },
+  { name: 'Shakira', birth: 1977 },
+  { name: 'Bill Clinton', birth: 1946 },
+  { name: 'George W. Bush', birth: 1946 },
+  { name: 'Hillary Clinton', birth: 1947 },
+  { name: 'Bernie Sanders', birth: 1941 },
+  { name: 'Alexandria Ocasio-Cortez', birth: 1989 },
+  { name: 'Bob Dylan', birth: 1941 },
+  { name: 'Bruce Springsteen', birth: 1949 },
+  { name: 'Dolly Parton', birth: 1946 },
+  { name: 'Elvis Presley', birth: 1935, death: 1977 },
+  { name: 'Johnny Cash', birth: 1932, death: 2003 },
+  { name: 'Aretha Franklin', birth: 1942, death: 2018 },
+  { name: 'Whitney Houston', birth: 1963, death: 2012 },
+  { name: 'Prince', birth: 1958, death: 2016 },
+  { name: 'Michael Jackson', birth: 1958, death: 2009 },
+  { name: 'Bob Marley', birth: 1945, death: 1981 },
+  { name: 'Stephen King', birth: 1947 },
+  { name: 'George Lucas', birth: 1944 },
+  { name: 'Steven Spielberg', birth: 1946 },
+  { name: 'Quentin Tarantino', birth: 1963 },
+  { name: 'Lin-Manuel Miranda', birth: 1980 },
+  { name: 'Tony Bennett', birth: 1926, death: 2023 },
+  { name: 'Frank Sinatra', birth: 1915, death: 1998 },
+  { name: 'Lucille Ball', birth: 1911, death: 1989 },
+  { name: 'Robin Williams', birth: 1951, death: 2014 },
+  { name: 'Jerry Seinfeld', birth: 1954 },
+  { name: 'Ellen DeGeneres', birth: 1958 },
+  { name: 'George Clooney', birth: 1961 },
+  { name: 'Julia Roberts', birth: 1967 },
+  { name: 'Reese Witherspoon', birth: 1976 },
+  { name: 'Jennifer Aniston', birth: 1969 },
+  { name: 'Courteney Cox', birth: 1964 },
+  { name: 'Matthew McConaughey', birth: 1969 },
+  { name: 'Chris Pratt', birth: 1979 },
+  { name: 'Zoe Saldana', birth: 1978 },
+  { name: 'Gal Gadot', birth: 1985 },
+  { name: 'Johnny Carson', birth: 1925, death: 2005 },
+  { name: 'Bill Murray', birth: 1950 },
+  { name: 'Adam Sandler', birth: 1966 },
+  { name: 'Jim Carrey', birth: 1962 },
+  { name: 'Steve Carell', birth: 1962 },
+  { name: 'Ben Affleck', birth: 1972 },
+  { name: 'Matt Damon', birth: 1970 },
+  { name: 'Timothée Chalamet', birth: 1995 },
+  { name: 'Zendaya', birth: 1996 },
+  { name: 'Charli D’Amelio', birth: 2004 },
+  { name: 'Addison Rae', birth: 2000 },
+  { name: 'MrBeast', birth: 1998 },
+  { name: 'Logan Paul', birth: 1995 },
+  { name: 'Jake Paul', birth: 1997 },
+  { name: 'Bretman Rock', birth: 1998 },
+  { name: 'Keanu Reeves', birth: 1964 },
+  { name: 'Christian Bale', birth: 1974 },
+  { name: 'Hugh Jackman', birth: 1968 },
+  { name: 'Ryan Gosling', birth: 1980 },
+  { name: 'Ryan Reynolds', birth: 1976 },
+  { name: 'Joaquin Phoenix', birth: 1974 },
+  { name: 'Benedict Cumberbatch', birth: 1976 },
+  { name: 'Chris Hemsworth', birth: 1983 },
+  { name: 'Mark Wahlberg', birth: 1971 },
+  { name: 'Jason Statham', birth: 1967 },
+  { name: 'Al Pacino', birth: 1940 },
+  { name: 'Robert De Niro', birth: 1943 },
+  { name: 'Morgan Freeman', birth: 1937 },
+  { name: 'Harrison Ford', birth: 1942 },
+  { name: 'Sylvester Stallone', birth: 1946 },
+  { name: 'Arnold Schwarzenegger', birth: 1947 },
+  { name: 'Nicolas Cage', birth: 1964 },
+  { name: 'Jake Gyllenhaal', birth: 1980 },
+  { name: 'Bradley Cooper', birth: 1975 },
+  { name: 'Daniel Day-Lewis', birth: 1957 },
+  { name: 'Sean Penn', birth: 1960 },
+  { name: 'Jeremy Renner', birth: 1971 },
+  { name: 'Orlando Bloom', birth: 1977 },
+  { name: 'Henry Cavill', birth: 1983 },
+  { name: 'Adam Driver', birth: 1983 },
+  { name: 'Paul Rudd', birth: 1969 },
+  { name: 'Andrew Garfield', birth: 1983 },
+  { name: 'Tobey Maguire', birth: 1975 },
+  { name: 'Jude Law', birth: 1972 },
+  { name: 'Colin Farrell', birth: 1976 },
+  { name: 'Idris Elba', birth: 1972 },
+  { name: 'Michael B. Jordan', birth: 1987 },
+  { name: 'Channing Tatum', birth: 1980 },
+  { name: 'Vin Diesel', birth: 1967 },
+  { name: 'Zac Efron', birth: 1987 },
+  { name: 'Jennifer Lawrence', birth: 1990 },
+  { name: 'Margot Robbie', birth: 1990 },
+  { name: 'Natalie Portman', birth: 1981 },
+  { name: 'Emma Stone', birth: 1988 },
+  { name: 'Anne Hathaway', birth: 1982 },
+  { name: 'Charlize Theron', birth: 1975 },
+  { name: 'Nicole Kidman', birth: 1967 },
+  { name: 'Cate Blanchett', birth: 1969 },
+  { name: 'Sandra Bullock', birth: 1964 },
+  { name: 'Halle Berry', birth: 1966 },
+  { name: 'Emily Blunt', birth: 1983 },
+  { name: 'Jessica Chastain', birth: 1977 },
+  { name: 'Rachel McAdams', birth: 1978 },
+  { name: 'Kristen Stewart', birth: 1990 },
+  { name: 'Amy Adams', birth: 1974 },
+  { name: 'Keira Knightley', birth: 1985 },
+  { name: 'Dakota Johnson', birth: 1989 },
+  { name: 'Blake Lively', birth: 1987 },
+  { name: 'Uma Thurman', birth: 1970 },
+  { name: 'Penélope Cruz', birth: 1974 },
+  { name: 'Salma Hayek', birth: 1966 },
+  { name: 'Eva Mendes', birth: 1974 },
+  { name: 'Cameron Diaz', birth: 1972 },
+  { name: 'Drew Barrymore', birth: 1975 },
+  { name: 'Rooney Mara', birth: 1985 },
+  { name: 'Lily Collins', birth: 1989 },
+  { name: 'Anya Taylor-Joy', birth: 1996 },
+  { name: 'Millie Bobby Brown', birth: 2004 },
+  { name: 'Florence Pugh', birth: 1996 },
+  { name: 'Viola Davis', birth: 1965 },
+  { name: 'Julianne Moore', birth: 1960 },
+  { name: 'Glenn Close', birth: 1947 },
+  { name: 'Saoirse Ronan', birth: 1994 },
+  { name: 'Michelle Williams', birth: 1980 },
+  { name: 'Naomi Watts', birth: 1968 },
+  { name: 'Winona Ryder', birth: 1971 },
+  { name: 'Kirsten Dunst', birth: 1982 },
+  { name: 'Alicia Vikander', birth: 1988 },
+  { name: 'Brie Larson', birth: 1989 },
+  { name: 'Kate Winslet', birth: 1975 },
+  { name: 'Sigourney Weaver', birth: 1949 },
+  { name: 'Gwyneth Paltrow', birth: 1972 },
+];
+
+/**
+ * Hàm lấy ngẫu nhiên một đối tượng người nổi tiếng từ danh sách
+ * @param {Array} dataArray - Mảng celebrityData đã tạo ở bước trước
+ * @returns {Object} - Một đối tượng người nổi tiếng ngẫu nhiên
+ */
+const getRandomCelebrity = (dataArray: any) => {
+  if (!dataArray || dataArray.length === 0) {
+    return null;
+  }
+
+  // Tính toán index ngẫu nhiên
+  const randomIndex = Math.floor(Math.random() * dataArray.length);
+
+  // Trả về đối tượng tại vị trí đó
+  return dataArray[randomIndex];
+};
+
+export const handleAutoGoogleAlert = async (page: any, profile: any) => {
+  // --- KIỂM TRA ĐẦU VÀO (Giữ nguyên logic của bạn) ---
+  if (!page || !profile || !profile.username) {
+    throw Object.assign(new Error('Invalid parameters'), { errCode: 'DATA' });
+  }
+
+  console.log(
+    `--- Bắt đầu quy trình Google Alert cho: ${profile.username} ---`
+  );
+
+  try {
+    // 1. Điều hướng tới trang Alerts
+    await gotoWithRetry(page, 'https://www.google.com/alerts');
+    await readingDelay(2000, 3000);
+
+    // 2. Định nghĩa Selectors linh hoạt hơn
+    // Ưu tiên dùng aria-label vì nó chuẩn hóa hơn class trong các sản phẩm Google
+    const inputSelector =
+      'input[aria-label="Create an alert about..."], .label-input-label, #query_div input';
+    const createBtnSelector =
+      '#create_alert, .jfk-button-action[role="button"]';
+
+    // 3. Đợi và tương tác với ô Input
+    console.log('🔍 Đang tìm ô nhập liệu...');
+    try {
+      await page.waitForSelector(inputSelector, {
+        visible: true,
+        timeout: 15000,
+      });
+    } catch (e) {
+      // Nếu không tìm thấy, có thể do Google yêu cầu đăng nhập lại hoặc chuyển hướng
+      throw Object.assign(new Error('Không tìm thấy ô nhập từ khóa Alert'), {
+        errCode: 'ELEMENT',
+      });
+    }
+
+    const randomPerson = getRandomCelebrity(dataAlert);
+    const keyword = randomPerson?.name || 'Taylor Swift';
+
+    // Click và xóa sạch nội dung cũ (nếu có)
+    await smartClick(page, inputSelector);
+    await hesitation(0.2, 300, 600);
+
+    // 4. Nhập liệu giả lập người dùng
+    console.log(`⌨️ Đang nhập từ khóa: "${keyword}"`);
+    await typeLikeHuman(page, inputSelector, keyword);
+    await delay(randomBetween(800, 1500));
+
+    console.log('↩️ Nhấn Enter để xác nhận...');
+    await page.keyboard.press('Enter');
+    // 5. Click nút Create Alert
+    console.log('🖱️ Đang bấm nút Create Alert...');
+    try {
+      await page.waitForSelector(createBtnSelector, {
+        visible: true,
+        timeout: 10000,
+      });
+      await smartClick(page, createBtnSelector);
+    } catch (btnError) {
+      // Backup: Thử nhấn Enter nếu không tìm thấy nút bấm
+      console.warn('⚠️ Không tìm thấy nút bấm, thử nhấn phím Enter...');
+      await page.keyboard.press('Enter');
+    }
+
+    // 6. Xác nhận hoàn tất
+    await readingDelay(2000, 3000);
+    console.log(`✅ Đã thiết lập thành công Alert cho: ${keyword}`);
+  } catch (error: any) {
+    console.error(`❌ Lỗi tại handleAutoGoogleAlert: ${error.message}`);
+    throw Object.assign(
+      new Error(`handleAutoGoogleAlert thất bại: ${error.message}`),
+      { errCode: error?.errCode || 'ELEMENT' }
+    );
+  }
+};

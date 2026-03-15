@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import axios from 'axios';
 import puppeteer from 'puppeteer';
-import { handleAutoLogin, handleAutoChangePassword, gotoWithRetry, delay, } from './service.js';
+import { handleAutoLogin, handleAutoChangePhone, handleAutoChangeEmail, handleAutoChangePassword, handleDownloadBackUpCode, handleAutoGoogleAlert, gotoWithRetry, delay, } from './service.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Đặt tên ứng dụng NGAY từ đầu sử dụng setName()
@@ -373,82 +373,71 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                     if (data.isAutoChange) {
                         changeSuccess = true;
                         //Tải backup code
-                        // try {
-                        //   await handleDownloadBackUpCode(page, profile);
-                        //   console.log(`✅ Tải backup code thành công cho: ${profile.name}`);
-                        // } catch (backupError: any) {
-                        //   const errorMsg =
-                        //     backupError.message || 'Lỗi tải backup code không xác định';
-                        //   console.error(
-                        //     `❌ Lỗi tải backup code cho ${profile.name}:`,
-                        //     errorMsg
-                        //   );
-                        //   const errCode = backupError?.errCode || 'BACKUP_DOWNLOAD_FAILED';
-                        //   changeSuccess = false;
-                        //   profileHadError = true;
-                        //   firstErrorMsg = firstErrorMsg || errorMsg;
-                        //   errors.push({
-                        //     profileId: profile.profile_id,
-                        //     profileName: profile.name,
-                        //     action: 'handleDownloadBackUpCode',
-                        //     error: errorMsg,
-                        //     errCode,
-                        //     timestamp: new Date().toISOString(),
-                        //   });
-                        //   markErrFlags(errCode);
-                        // }
+                        try {
+                            await handleDownloadBackUpCode(page, profile);
+                            console.log(`✅ Tải backup code thành công cho: ${profile.name}`);
+                        }
+                        catch (backupError) {
+                            const errorMsg = backupError.message || 'Lỗi tải backup code không xác định';
+                            console.error(`❌ Lỗi tải backup code cho ${profile.name}:`, errorMsg);
+                            const errCode = backupError?.errCode || 'BACKUP_DOWNLOAD_FAILED';
+                            changeSuccess = false;
+                            profileHadError = true;
+                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            errors.push({
+                                profileId: profile.profile_id,
+                                profileName: profile.name,
+                                action: 'handleDownloadBackUpCode',
+                                error: errorMsg,
+                                errCode,
+                                timestamp: new Date().toISOString(),
+                            });
+                            markErrFlags(errCode);
+                        }
                         // // XOÁ SỐ ĐIỆN THOẠI
-                        // try {
-                        //   await handleAutoChangePhone(page, profile);
-                        //   console.log(
-                        //     `✅ Xóa số điện thoại thành công cho: ${profile.name}`
-                        //   );
-                        // } catch (phoneError: any) {
-                        //   const errorMsg =
-                        //     phoneError.message || 'Lỗi xóa số điện thoại không xác định';
-                        //   console.error(
-                        //     `❌ Lỗi xóa số điện thoại cho ${profile.name}:`,
-                        //     errorMsg
-                        //   );
-                        //   const errCode = phoneError?.errCode || 'PHONE_CHANGE_FAILED';
-                        //   changeSuccess = false;
-                        //   profileHadError = true;
-                        //   firstErrorMsg = firstErrorMsg || errorMsg;
-                        //   errors.push({
-                        //     profileId: profile.profile_id,
-                        //     profileName: profile.name,
-                        //     action: 'handleAutoChangePhone',
-                        //     error: errorMsg,
-                        //     errCode,
-                        //     timestamp: new Date().toISOString(),
-                        //   });
-                        //   markErrFlags(errCode);
-                        // }
+                        try {
+                            await handleAutoChangePhone(page, profile);
+                            console.log(`✅ Xóa số điện thoại thành công cho: ${profile.name}`);
+                        }
+                        catch (phoneError) {
+                            const errorMsg = phoneError.message || 'Lỗi xóa số điện thoại không xác định';
+                            console.error(`❌ Lỗi xóa số điện thoại cho ${profile.name}:`, errorMsg);
+                            const errCode = phoneError?.errCode || 'PHONE_CHANGE_FAILED';
+                            changeSuccess = false;
+                            profileHadError = true;
+                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            errors.push({
+                                profileId: profile.profile_id,
+                                profileName: profile.name,
+                                action: 'handleAutoChangePhone',
+                                error: errorMsg,
+                                errCode,
+                                timestamp: new Date().toISOString(),
+                            });
+                            markErrFlags(errCode);
+                        }
                         // // THAY ĐỔI EMAIL
-                        // try {
-                        //   await handleAutoChangeEmail(page, profile);
-                        //   console.log(`✅ Thay đổi email thành công cho: ${profile.name}`);
-                        // } catch (emailError: any) {
-                        //   const errorMsg =
-                        //     emailError.message || 'Lỗi thay đổi email không xác định';
-                        //   console.error(
-                        //     `❌ Lỗi thay đổi email cho ${profile.name}:`,
-                        //     errorMsg
-                        //   );
-                        //   const errCode = emailError?.errCode || 'EMAIL_CHANGE_FAILED';
-                        //   changeSuccess = false;
-                        //   profileHadError = true;
-                        //   firstErrorMsg = firstErrorMsg || errorMsg;
-                        //   errors.push({
-                        //     profileId: profile.profile_id,
-                        //     profileName: profile.name,
-                        //     action: 'handleAutoChangeEmail',
-                        //     error: errorMsg,
-                        //     errCode,
-                        //     timestamp: new Date().toISOString(),
-                        //   });
-                        //   markErrFlags(errCode);
-                        // }
+                        try {
+                            await handleAutoChangeEmail(page, profile);
+                            console.log(`✅ Thay đổi email thành công cho: ${profile.name}`);
+                        }
+                        catch (emailError) {
+                            const errorMsg = emailError.message || 'Lỗi thay đổi email không xác định';
+                            console.error(`❌ Lỗi thay đổi email cho ${profile.name}:`, errorMsg);
+                            const errCode = emailError?.errCode || 'EMAIL_CHANGE_FAILED';
+                            changeSuccess = false;
+                            profileHadError = true;
+                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            errors.push({
+                                profileId: profile.profile_id,
+                                profileName: profile.name,
+                                action: 'handleAutoChangeEmail',
+                                error: errorMsg,
+                                errCode,
+                                timestamp: new Date().toISOString(),
+                            });
+                            markErrFlags(errCode);
+                        }
                         // THAY ĐỔI MẬT KHẨU
                         try {
                             await handleAutoChangePassword(page, profile);
@@ -465,6 +454,30 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                                 profileId: profile.profile_id,
                                 profileName: profile.name,
                                 action: 'handleAutoChangePassword',
+                                error: errorMsg,
+                                errCode,
+                                timestamp: new Date().toISOString(),
+                            });
+                            markErrFlags(errCode);
+                        }
+                    }
+                    if (data.isGoogleAlert) {
+                        try {
+                            await handleAutoGoogleAlert(page, profile);
+                            console.log(`✅ Kiểm tra Google Alert thành công cho: ${profile.name}`);
+                        }
+                        catch (alertError) {
+                            const errorMsg = alertError.message ||
+                                'Lỗi kiểm tra Google Alert không xác định';
+                            console.error(`❌ Lỗi kiểm tra Google Alert cho ${profile.name}:`, errorMsg);
+                            const errCode = alertError?.errCode || 'GOOGLE_ALERT_FAILED';
+                            changeSuccess = false;
+                            profileHadError = true;
+                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            errors.push({
+                                profileId: profile.profile_id,
+                                profileName: profile.name,
+                                action: 'handleAutoGoogleAlert',
                                 error: errorMsg,
                                 errCode,
                                 timestamp: new Date().toISOString(),

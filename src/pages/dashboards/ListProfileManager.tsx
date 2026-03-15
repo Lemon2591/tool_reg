@@ -19,6 +19,8 @@ export const ProjectsDashboardPage = () => {
   const [projectTabsKey, setProjectsTabKey] = useState<string>('all');
   const [isLoginAction, setIsLogin] = useState(false);
   const [isChangeInfo, setIsChangeInfo] = useState(false);
+  const [isGoogleAlert, setIsGoogleAlert] = useState(false);
+  const [isVerifyEmail, setIsVerifyEmail] = useState(false);
   const [loginStatus, setLoginStatus] = useState<boolean>(false);
   const [changeStatus, setChangeStatus] = useState<boolean>(false);
   const [errorStatus, setErrorStatus] = useState<boolean>(false);
@@ -99,6 +101,8 @@ export const ProjectsDashboardPage = () => {
       // tắt login thì cũng tắt luôn change info
       setIsLogin(false);
       setIsChangeInfo(false);
+      setIsGoogleAlert(false);
+      setIsVerifyEmail(false);
     } else {
       setIsLogin(true);
     }
@@ -110,6 +114,26 @@ export const ProjectsDashboardPage = () => {
     } else {
       // bật change info thì auto bật login
       setIsChangeInfo(true);
+      setIsLogin(true);
+    }
+  };
+
+  const toggleGoogleAlert = () => {
+    if (isGoogleAlert) {
+      setIsGoogleAlert(false);
+    } else {
+      // bật change info thì auto bật login
+      setIsGoogleAlert(true);
+      setIsLogin(true);
+    }
+  };
+
+  const toggleVerifyEmail = () => {
+    if (isVerifyEmail) {
+      setIsVerifyEmail(false);
+    } else {
+      // bật change info thì auto bật login
+      setIsVerifyEmail(true);
       setIsLogin(true);
     }
   };
@@ -127,6 +151,8 @@ export const ProjectsDashboardPage = () => {
       const payload = {
         isAutoLogin: isLoginAction,
         isAutoChange: isChangeInfo,
+        isGoogleAlert: isGoogleAlert,
+        isVerifyEmail: isVerifyEmail,
         profileIds: selectedProfileKeys,
       };
       message.loading('Đang khởi tạo trình duyệt...', 0);
@@ -245,16 +271,16 @@ export const ProjectsDashboardPage = () => {
               </Button>
 
               <Button
-                type={isChangeInfo ? 'primary' : 'default'}
+                type={isGoogleAlert ? 'primary' : 'default'}
                 icon={<AlertOutlined />}
-                onClick={toggleChangeInfo}
+                onClick={toggleGoogleAlert}
               >
                 Google Alert
               </Button>
               <Button
-                type={isChangeInfo ? 'primary' : 'default'}
+                type={isVerifyEmail ? 'primary' : 'default'}
                 icon={<FileProtectOutlined />}
-                onClick={toggleChangeInfo}
+                onClick={toggleVerifyEmail}
               >
                 Verify Email
               </Button>
