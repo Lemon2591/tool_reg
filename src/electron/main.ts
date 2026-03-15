@@ -227,10 +227,11 @@ const writeProfileCache = (data: any[]): void => {
   }
 };
 
-const mergeProfileCache = (cached: any[], incoming: any[]): any[] => {
-  // Ưu tiên so sánh theo username; fallback profile_id/id khi thiếu username
+const updateProfileCache = (cached: any[], incoming: any[]): any[] => {
+  // Update toàn bộ cache với dữ liệu từ incoming, chỉ update các trường cụ thể
   const map = new Map<string | number, any>();
 
+  // Thêm tất cả cached vào map
   cached.forEach((item) => {
     const key = item?.username ?? item?.profile_id;
     if (key !== undefined && key !== null) {
@@ -238,11 +239,26 @@ const mergeProfileCache = (cached: any[], incoming: any[]): any[] => {
     }
   });
 
+  // Update với incoming
   incoming.forEach((item) => {
     const key = item?.username ?? item?.profile_id;
     if (key === undefined || key === null) return;
-    // Chỉ thêm mới nếu cache chưa có username này
-    if (!map.has(key)) {
+
+    if (map.has(key)) {
+      // Update các trường cụ thể, giữ nguyên các trường khác
+      const existing = map.get(key);
+      map.set(key, {
+        ...existing,
+        name: item.name || existing.name,
+        username: item.username || existing.username,
+        password: item.password || existing.password,
+        new_password: item.new_password || existing.new_password,
+        tfa_secret: item.tfa_secret || existing.tfa_secret,
+        proxy_ip: item.proxy_ip || existing.proxy_ip,
+        proxy_type: item.proxy_type || existing.proxy_type,
+      });
+    } else {
+      // Thêm mới nếu chưa có
       map.set(key, item);
     }
   });
@@ -474,83 +490,83 @@ ipcMain.handle('launch-profile', async (_event, data) => {
           if (data.isAutoChange) {
             changeSuccess = true;
             //Tải backup code
-            try {
-              await handleDownloadBackUpCode(page, profile);
-              console.log(`✅ Tải backup code thành công cho: ${profile.name}`);
-            } catch (backupError: any) {
-              const errorMsg =
-                backupError.message || 'Lỗi tải backup code không xác định';
-              console.error(
-                `❌ Lỗi tải backup code cho ${profile.name}:`,
-                errorMsg
-              );
-              const errCode = backupError?.errCode || 'BACKUP_DOWNLOAD_FAILED';
-              changeSuccess = false;
-              profileHadError = true;
-              firstErrorMsg = firstErrorMsg || errorMsg;
-              errors.push({
-                profileId: profile.profile_id,
-                profileName: profile.name,
-                action: 'handleDownloadBackUpCode',
-                error: errorMsg,
-                errCode,
-                timestamp: new Date().toISOString(),
-              });
-              markErrFlags(errCode);
-            }
+            // try {
+            //   await handleDownloadBackUpCode(page, profile);
+            //   console.log(`✅ Tải backup code thành công cho: ${profile.name}`);
+            // } catch (backupError: any) {
+            //   const errorMsg =
+            //     backupError.message || 'Lỗi tải backup code không xác định';
+            //   console.error(
+            //     `❌ Lỗi tải backup code cho ${profile.name}:`,
+            //     errorMsg
+            //   );
+            //   const errCode = backupError?.errCode || 'BACKUP_DOWNLOAD_FAILED';
+            //   changeSuccess = false;
+            //   profileHadError = true;
+            //   firstErrorMsg = firstErrorMsg || errorMsg;
+            //   errors.push({
+            //     profileId: profile.profile_id,
+            //     profileName: profile.name,
+            //     action: 'handleDownloadBackUpCode',
+            //     error: errorMsg,
+            //     errCode,
+            //     timestamp: new Date().toISOString(),
+            //   });
+            //   markErrFlags(errCode);
+            // }
             // // XOÁ SỐ ĐIỆN THOẠI
-            try {
-              await handleAutoChangePhone(page, profile);
-              console.log(
-                `✅ Xóa số điện thoại thành công cho: ${profile.name}`
-              );
-            } catch (phoneError: any) {
-              const errorMsg =
-                phoneError.message || 'Lỗi xóa số điện thoại không xác định';
-              console.error(
-                `❌ Lỗi xóa số điện thoại cho ${profile.name}:`,
-                errorMsg
-              );
-              const errCode = phoneError?.errCode || 'PHONE_CHANGE_FAILED';
-              changeSuccess = false;
-              profileHadError = true;
-              firstErrorMsg = firstErrorMsg || errorMsg;
-              errors.push({
-                profileId: profile.profile_id,
-                profileName: profile.name,
-                action: 'handleAutoChangePhone',
-                error: errorMsg,
-                errCode,
-                timestamp: new Date().toISOString(),
-              });
-              markErrFlags(errCode);
-            }
+            // try {
+            //   await handleAutoChangePhone(page, profile);
+            //   console.log(
+            //     `✅ Xóa số điện thoại thành công cho: ${profile.name}`
+            //   );
+            // } catch (phoneError: any) {
+            //   const errorMsg =
+            //     phoneError.message || 'Lỗi xóa số điện thoại không xác định';
+            //   console.error(
+            //     `❌ Lỗi xóa số điện thoại cho ${profile.name}:`,
+            //     errorMsg
+            //   );
+            //   const errCode = phoneError?.errCode || 'PHONE_CHANGE_FAILED';
+            //   changeSuccess = false;
+            //   profileHadError = true;
+            //   firstErrorMsg = firstErrorMsg || errorMsg;
+            //   errors.push({
+            //     profileId: profile.profile_id,
+            //     profileName: profile.name,
+            //     action: 'handleAutoChangePhone',
+            //     error: errorMsg,
+            //     errCode,
+            //     timestamp: new Date().toISOString(),
+            //   });
+            //   markErrFlags(errCode);
+            // }
             // // THAY ĐỔI EMAIL
-            try {
-              await handleAutoChangeEmail(page, profile);
-              console.log(`✅ Thay đổi email thành công cho: ${profile.name}`);
-            } catch (emailError: any) {
-              const errorMsg =
-                emailError.message || 'Lỗi thay đổi email không xác định';
-              console.error(
-                `❌ Lỗi thay đổi email cho ${profile.name}:`,
-                errorMsg
-              );
-              const errCode = emailError?.errCode || 'EMAIL_CHANGE_FAILED';
-              changeSuccess = false;
-              profileHadError = true;
-              firstErrorMsg = firstErrorMsg || errorMsg;
-              errors.push({
-                profileId: profile.profile_id,
-                profileName: profile.name,
-                action: 'handleAutoChangeEmail',
-                error: errorMsg,
-                errCode,
-                timestamp: new Date().toISOString(),
-              });
-              markErrFlags(errCode);
-            }
-            // // THAY ĐỔI MẬT KHẨU
+            // try {
+            //   await handleAutoChangeEmail(page, profile);
+            //   console.log(`✅ Thay đổi email thành công cho: ${profile.name}`);
+            // } catch (emailError: any) {
+            //   const errorMsg =
+            //     emailError.message || 'Lỗi thay đổi email không xác định';
+            //   console.error(
+            //     `❌ Lỗi thay đổi email cho ${profile.name}:`,
+            //     errorMsg
+            //   );
+            //   const errCode = emailError?.errCode || 'EMAIL_CHANGE_FAILED';
+            //   changeSuccess = false;
+            //   profileHadError = true;
+            //   firstErrorMsg = firstErrorMsg || errorMsg;
+            //   errors.push({
+            //     profileId: profile.profile_id,
+            //     profileName: profile.name,
+            //     action: 'handleAutoChangeEmail',
+            //     error: errorMsg,
+            //     errCode,
+            //     timestamp: new Date().toISOString(),
+            //   });
+            //   markErrFlags(errCode);
+            // }
+            // THAY ĐỔI MẬT KHẨU
             try {
               await handleAutoChangePassword(page, profile);
               console.log(
@@ -623,8 +639,7 @@ ipcMain.handle('launch-profile', async (_event, data) => {
         continue;
       } finally {
         // Đóng trình duyệt và giải phóng profile qua ixBrowser
-        await closeProfileSession(browser, profile);
-
+        // await closeProfileSession(browser, profile);
         // 3. Nghỉ một khoảng ngắn (2-3s) trước khi chuyển sang Profile tiếp theo
         // Việc này giúp tránh lỗi "Profile is already running" do ixBrowser chưa kịp dọn dẹp xong tiến trình ngầm
         await delay(2500);
@@ -697,21 +712,15 @@ ipcMain.handle('get-profile-list', async (_event, { page, limit }) => {
     });
 
     const apiPayload = response?.data || {};
-    // Chỉ normalize dữ liệu mới từ API trước khi merge
+    // Normalize dữ liệu từ API
     const freshProfiles = normalizeProfiles(apiPayload?.data?.data || []);
-    const mergedProfiles = mergeProfileCache(cachedProfiles, freshProfiles);
+    const updatedProfiles = updateProfileCache(cachedProfiles, freshProfiles);
 
-    // Ghi cache nếu chưa có hoặc có dữ liệu mới
-    const hasNewProfiles = mergedProfiles.length > cachedProfiles.length;
+    // Ghi cache với dữ liệu đã update
+    writeProfileCache(updatedProfiles);
 
-    if (hasNewProfiles || !fs.existsSync(PROFILE_CACHE_PATH())) {
-      writeProfileCache(mergedProfiles);
-    }
-
-    // Luôn trả về dữ liệu đọc từ cache để đảm bảo đồng nhất với những gì đã lưu
-    const responseProfiles = fs.existsSync(PROFILE_CACHE_PATH())
-      ? readProfileCache()
-      : mergedProfiles;
+    // Trả về dữ liệu từ cache
+    const responseProfiles = readProfileCache();
 
     return {
       data: { data: responseProfiles },

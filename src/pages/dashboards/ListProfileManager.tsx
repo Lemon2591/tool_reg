@@ -8,6 +8,8 @@ import {
   EditOutlined,
   PlayCircleOutlined,
   SyncOutlined,
+  AlertOutlined,
+  FileProtectOutlined,
 } from '@ant-design/icons';
 import { DASHBOARD_ITEMS } from '../../constants';
 import { Link, useLocation } from 'react-router-dom';
@@ -231,7 +233,7 @@ export const ProjectsDashboardPage = () => {
                 icon={<LoginOutlined />}
                 onClick={toggleLogin}
               >
-                Chức năng đăng nhập
+                Đăng nhập
               </Button>
 
               <Button
@@ -239,7 +241,22 @@ export const ProjectsDashboardPage = () => {
                 icon={<EditOutlined />}
                 onClick={toggleChangeInfo}
               >
-                Chức năng đổi thông tin
+                Đổi thông tin
+              </Button>
+
+              <Button
+                type={isChangeInfo ? 'primary' : 'default'}
+                icon={<AlertOutlined />}
+                onClick={toggleChangeInfo}
+              >
+                Google Alert
+              </Button>
+              <Button
+                type={isChangeInfo ? 'primary' : 'default'}
+                icon={<FileProtectOutlined />}
+                onClick={toggleChangeInfo}
+              >
+                Verify Email
               </Button>
             </Space>
           </Card>
