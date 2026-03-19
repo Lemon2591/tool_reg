@@ -2,8 +2,10 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import os from 'os';
 import axios from 'axios';
 import puppeteer from 'puppeteer';
+import nodemailer from 'nodemailer';
 import { handleAutoLogin, handleAutoChangePhone, handleAutoChangeEmail, handleAutoChangePassword, handleDownloadBackUpCode, handleAutoGoogleAlert, handleVerifyEmail, gotoWithRetry, delay, } from './service.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -203,11 +205,16 @@ const normalizeProfiles = (items) => (items || []).map((item) => ({
     proxy_ip: item?.proxy_ip ?? item?.proxy ?? '',
     proxy_type: item?.proxy_type ?? item?.proxyType ?? '',
     isLoginAction: false,
-    isChangeInfo: false,
     isError: false,
     errorInfo: '',
     isProxyErr: false,
     isCaptchaErr: false,
+    downCodeSuccess: false,
+    changePassSuccess: false,
+    delPhoneSuccess: false,
+    changeEmailSuccess: false,
+    verifyEmailSuccess: false,
+    googleAlertSuccess: false,
 }));
 const createWindow = () => {
     // Icon path: sử dụng app.getAppPath() để lấy đường dẫn root
@@ -237,6 +244,35 @@ const createWindow = () => {
         win.loadFile(indexPath);
     }
 };
+const sendMail = async (data) => {
+    let config = {
+        service: 'gmail',
+        auth: {
+            user: 'lemondev.id.vn@gmail.com',
+            pass: 'tkgy snwr nccq gutq',
+        },
+    };
+    let transporter = await nodemailer.createTransport(config);
+    let message = {
+        from: 'lemondev.id.vn@gmail.com',
+        to: 'anhqt.dev@gmail.com',
+        subject: 'Report Point Login & Point Info',
+        html: `<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    
+      <p style="font-family: 'Roboto', sans-serif; font-weight: 600; text-align: center; margin-top: 24px">Báo cáo điểm đăng nhập & thông tin điểm</p>
+    <p style="font-family: 'Roboto'; text-align:center; font-weight: 600; margin:5px 0px; font-size: 12px ">Tổng số điểm đăng nhập:</p>
+    <p style="font-family: 'Roboto'; text-align:center; font-weight: 600; font-size: 24px; margin:8px 0px">${data.pointLogin}</p>
+    <p style="font-family: 'Roboto'; text-align:center; font-weight: 600; margin:5px 0px; font-size: 12px ">Tổng số điểm thông tin:</p>
+    <p style="font-family: 'Roboto'; text-align:center; font-weight: 600; font-size: 24px; margin:8px 0px">${data.pointInfo}</p>
+    <p style="font-family: 'Roboto';font-size: 12px;margin-top: 24px">Lemon Cloud<br>Copy right: https://lemondev.id.vn</p>`,
+    };
+    try {
+        return await transporter.sendMail(message);
+    }
+    catch (error) { }
+};
 /**
  * ĐĂNG KÝ HANDLER: Đảm bảo tên 'launch-profile' khớp 100% với preload.js
  */
@@ -248,12 +284,85 @@ ipcMain.handle('launch-profile', async (_event, data) => {
         // Mảng lưu lỗi cho từng profile
         const errors = [];
         const startTime = Date.now();
+        let totalPointLogin = 0;
+        let totalPointInfo = 0;
+        // Đọc hoặc tạo file config trong thư mục logs
+        const configFilePath = path.join('./logs', 'config.json');
+        let config = {};
+        // Đảm bảo thư mục logs tồn tại
+        if (!fs.existsSync('./logs')) {
+            fs.mkdirSync('./logs', { recursive: true });
+        }
+        if (fs.existsSync(configFilePath)) {
+            // Nếu đã có file config thì đọc dữ liệu
+            try {
+                const configData = fs.readFileSync(configFilePath, 'utf-8');
+                config = JSON.parse(configData);
+                console.log('📄 Đã đọc config từ file:', configFilePath);
+            }
+            catch (err) {
+                console.error('⚠️ Lỗi khi đọc file config:', err);
+            }
+        }
+        else {
+            // Log thông tin máy tính
+            const hostname = os.hostname();
+            const username = os.userInfo().username;
+            const platform = os.platform();
+            const arch = os.arch();
+            const networkInterfaces = os.networkInterfaces();
+            let deviceIP = 'Unknown';
+            // Tìm IP address đầu tiên không phải internal
+            for (const interfaceName in networkInterfaces) {
+                const interfaces = networkInterfaces[interfaceName];
+                if (interfaces) {
+                    for (const iface of interfaces) {
+                        if (iface.family === 'IPv4' && !iface.internal) {
+                            deviceIP = iface.address;
+                            break;
+                        }
+                    }
+                    if (deviceIP !== 'Unknown')
+                        break;
+                }
+            }
+            const deviceName = `${hostname} (${username})`;
+            const deviceID = `${hostname}-${platform}-${arch}`;
+            const dataSaveInfo = {
+                device_id: deviceID,
+                device_name: deviceName,
+                device_ip: deviceIP,
+                username: username,
+                platform: platform,
+                arch: arch,
+                pointLogin: 0,
+                pointInfo: 0,
+            };
+            // Nếu chưa có thì tạo file config mới với dataSaveInfo
+            config = { ...dataSaveInfo };
+            try {
+                fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), 'utf-8');
+                console.log('📄 Tạo file config mới:', configFilePath);
+            }
+            catch (err) {
+                console.error('⚠️ Lỗi khi tạo file config:', err);
+            }
+        }
+        // Sau này có thể cập nhật config và lưu lại
+        // config là object luôn chứa dữ liệu mới nhất
         // 2. Chạy vòng lặp xử lý từng profile
         for (const profile of profiles) {
+            let pointLogin = 0;
+            let pointInfo = 0;
             console.log(`🔄 Đang xử lý: ${profile.name} (ID: ${profile.profile_id})`);
             let browser = null;
             let loginSuccess = false;
-            let changeSuccess = false;
+            let downCodeSuccess = false;
+            let changePassSuccess = false;
+            let delPhoneSuccess = false;
+            let changeEmailSuccess = false;
+            let verifyEmailSuccess = false;
+            let googleAlertSuccess = false;
             let profileHadError = false;
             let firstErrorMsg = '';
             let isProxyErr = false;
@@ -267,11 +376,16 @@ ipcMain.handle('launch-profile', async (_event, data) => {
             const markCache = () => {
                 updateCacheProfile(cachedProfiles, profile.profile_id, {
                     isLoginAction: loginSuccess,
-                    isChangeInfo: changeSuccess,
                     isError: profileHadError,
                     errorInfo: firstErrorMsg,
                     isProxyErr,
                     isCaptchaErr,
+                    downCodeSuccess,
+                    changePassSuccess,
+                    delPhoneSuccess,
+                    changeEmailSuccess,
+                    verifyEmailSuccess,
+                    googleAlertSuccess,
                 });
             };
             try {
@@ -287,7 +401,9 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                         timestamp: new Date().toISOString(),
                     });
                     profileHadError = true;
-                    firstErrorMsg = firstErrorMsg || errorMsg;
+                    firstErrorMsg = firstErrorMsg
+                        ? `${firstErrorMsg} | ${errorMsg}`
+                        : errorMsg;
                     markCache();
                     continue;
                 }
@@ -307,7 +423,9 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                         timestamp: new Date().toISOString(),
                     });
                     profileHadError = true;
-                    firstErrorMsg = firstErrorMsg || errorMsg;
+                    firstErrorMsg = firstErrorMsg
+                        ? `${firstErrorMsg} | ${errorMsg}`
+                        : errorMsg;
                     markCache();
                     continue;
                 }
@@ -324,7 +442,9 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                             timestamp: new Date().toISOString(),
                         });
                         profileHadError = true;
-                        firstErrorMsg = firstErrorMsg || errorMsg;
+                        firstErrorMsg = firstErrorMsg
+                            ? `${firstErrorMsg} | ${errorMsg}`
+                            : errorMsg;
                         markCache();
                         continue;
                     }
@@ -345,13 +465,17 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                             await handleAutoLogin(page, profile);
                             console.log(`✅ Đăng nhập thành công cho: ${profile.name}`);
                             loginSuccess = true;
+                            pointLogin++;
                         }
                         catch (loginError) {
                             const errorMsg = loginError.message || 'Lỗi đăng nhập không xác định';
                             console.error(`❌ Lỗi đăng nhập cho ${profile.name}:`, errorMsg);
                             const errCode = loginError?.errCode || 'LOGIN_FAILED';
+                            loginSuccess = false;
                             profileHadError = true;
-                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            firstErrorMsg = firstErrorMsg
+                                ? `${firstErrorMsg} | ${errorMsg}`
+                                : errorMsg;
                             errors.push({
                                 profileId: profile.profile_id,
                                 profileName: profile.name,
@@ -369,18 +493,21 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                     // THAY ĐỔI THÔNG TIN
                     //Tải backup code
                     if (data.isDownCode) {
-                        changeSuccess = true;
                         try {
                             await handleDownloadBackUpCode(page, profile);
                             console.log(`✅ Tải backup code thành công cho: ${profile.name}`);
+                            downCodeSuccess = true;
+                            pointInfo++;
                         }
                         catch (backupError) {
                             const errorMsg = backupError.message || 'Lỗi tải backup code không xác định';
                             console.error(`❌ Lỗi tải backup code cho ${profile.name}:`, errorMsg);
                             const errCode = backupError?.errCode || 'BACKUP_DOWNLOAD_FAILED';
-                            changeSuccess = false;
+                            downCodeSuccess = false;
                             profileHadError = true;
-                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            firstErrorMsg = firstErrorMsg
+                                ? `${firstErrorMsg} | ${errorMsg}`
+                                : errorMsg;
                             errors.push({
                                 profileId: profile.profile_id,
                                 profileName: profile.name,
@@ -394,18 +521,21 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                     }
                     // XOÁ SỐ ĐIỆN THOẠI
                     if (data.isDelPhone) {
-                        changeSuccess = true;
                         try {
                             await handleAutoChangePhone(page, profile);
                             console.log(`✅ Xóa số điện thoại thành công cho: ${profile.name}`);
+                            delPhoneSuccess = true;
+                            pointInfo++;
                         }
                         catch (phoneError) {
                             const errorMsg = phoneError.message || 'Lỗi xóa số điện thoại không xác định';
                             console.error(`❌ Lỗi xóa số điện thoại cho ${profile.name}:`, errorMsg);
                             const errCode = phoneError?.errCode || 'PHONE_CHANGE_FAILED';
-                            changeSuccess = false;
+                            delPhoneSuccess = false;
                             profileHadError = true;
-                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            firstErrorMsg = firstErrorMsg
+                                ? `${firstErrorMsg} | ${errorMsg}`
+                                : errorMsg;
                             errors.push({
                                 profileId: profile.profile_id,
                                 profileName: profile.name,
@@ -419,18 +549,21 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                     }
                     // THAY ĐỔI EMAIL
                     if (data.isChangeMail) {
-                        changeSuccess = true;
                         try {
                             await handleAutoChangeEmail(page, profile);
                             console.log(`✅ Thay đổi email thành công cho: ${profile.name}`);
+                            changeEmailSuccess = true;
+                            pointInfo++;
                         }
                         catch (emailError) {
                             const errorMsg = emailError.message || 'Lỗi thay đổi email không xác định';
                             console.error(`❌ Lỗi thay đổi email cho ${profile.name}:`, errorMsg);
                             const errCode = emailError?.errCode || 'EMAIL_CHANGE_FAILED';
-                            changeSuccess = false;
+                            changeEmailSuccess = false;
                             profileHadError = true;
-                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            firstErrorMsg = firstErrorMsg
+                                ? `${firstErrorMsg} | ${errorMsg}`
+                                : errorMsg;
                             errors.push({
                                 profileId: profile.profile_id,
                                 profileName: profile.name,
@@ -444,19 +577,21 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                     }
                     // THAY ĐỔI MẬT KHẨU
                     if (data.isChangePass) {
-                        changeSuccess = true;
-                        // THAY ĐỔI MẬT KHẨU
                         try {
                             await handleAutoChangePassword(page, profile);
                             console.log(`✅ Thay đổi mật khẩu thành công cho: ${profile.name}`);
+                            changePassSuccess = true;
+                            pointInfo++;
                         }
                         catch (pwdError) {
                             const errorMsg = pwdError.message || 'Lỗi thay đổi mật khẩu không xác định';
                             console.error(`❌ Lỗi thay đổi mật khẩu cho ${profile.name}:`, errorMsg);
                             const errCode = pwdError?.errCode || 'PASSWORD_CHANGE_FAILED';
-                            changeSuccess = false;
+                            changePassSuccess = false;
                             profileHadError = true;
-                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            firstErrorMsg = firstErrorMsg
+                                ? `${firstErrorMsg} | ${errorMsg}`
+                                : errorMsg;
                             errors.push({
                                 profileId: profile.profile_id,
                                 profileName: profile.name,
@@ -472,15 +607,19 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                         try {
                             await handleVerifyEmail(page, profile);
                             console.log(`✅ Kiểm tra Verify Email thành công cho: ${profile.name}`);
+                            verifyEmailSuccess = true;
+                            pointInfo++;
                         }
                         catch (verifyError) {
                             const errorMsg = verifyError.message ||
                                 'Lỗi kiểm tra Verify Email không xác định';
                             console.error(`❌ Lỗi kiểm tra Verify Email cho ${profile.name}:`, errorMsg);
                             const errCode = verifyError?.errCode || 'VERIFY_EMAIL_FAILED';
-                            changeSuccess = false;
+                            verifyEmailSuccess = false;
                             profileHadError = true;
-                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            firstErrorMsg = firstErrorMsg
+                                ? `${firstErrorMsg} | ${errorMsg}`
+                                : errorMsg;
                             errors.push({
                                 profileId: profile.profile_id,
                                 profileName: profile.name,
@@ -496,15 +635,19 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                         try {
                             await handleAutoGoogleAlert(page, profile);
                             console.log(`✅ Kiểm tra Google Alert thành công cho: ${profile.name}`);
+                            googleAlertSuccess = true;
+                            pointInfo++;
                         }
                         catch (alertError) {
                             const errorMsg = alertError.message ||
                                 'Lỗi kiểm tra Google Alert không xác định';
                             console.error(`❌ Lỗi kiểm tra Google Alert cho ${profile.name}:`, errorMsg);
                             const errCode = alertError?.errCode || 'GOOGLE_ALERT_FAILED';
-                            changeSuccess = false;
+                            googleAlertSuccess = false;
                             profileHadError = true;
-                            firstErrorMsg = firstErrorMsg || errorMsg;
+                            firstErrorMsg = firstErrorMsg
+                                ? `${firstErrorMsg} | ${errorMsg}`
+                                : errorMsg;
                             errors.push({
                                 profileId: profile.profile_id,
                                 profileName: profile.name,
@@ -534,7 +677,9 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                         timestamp: new Date().toISOString(),
                     });
                     profileHadError = true;
-                    firstErrorMsg = firstErrorMsg || errorMsg;
+                    firstErrorMsg = firstErrorMsg
+                        ? `${firstErrorMsg} | ${errorMsg}`
+                        : errorMsg;
                     markCache();
                 }
             }
@@ -544,7 +689,9 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                 console.error(`❌ Lỗi xử lý profile ${profile.name}:`, errorMsg);
                 const errCode = profileError?.errCode || 'PROFILE_GENERAL_ERROR';
                 profileHadError = true;
-                firstErrorMsg = firstErrorMsg || errorMsg;
+                firstErrorMsg = firstErrorMsg
+                    ? `${firstErrorMsg} | ${errorMsg}`
+                    : errorMsg;
                 errors.push({
                     profileId: profile.profile_id,
                     profileName: profile.name,
@@ -560,12 +707,30 @@ ipcMain.handle('launch-profile', async (_event, data) => {
             }
             finally {
                 // Đóng trình duyệt và giải phóng profile qua ixBrowser
+                if (pointLogin > 0) {
+                    totalPointLogin += pointLogin;
+                }
+                if (pointInfo >= 4) {
+                    // Xử lý lưu trữ
+                    totalPointInfo += pointInfo;
+                }
                 await closeProfileSession(browser, profile);
                 // 3. Nghỉ một khoảng ngắn (2-3s) trước khi chuyển sang Profile tiếp theo
                 // Việc này giúp tránh lỗi "Profile is already running" do ixBrowser chưa kịp dọn dẹp xong tiến trình ngầm
                 await delay(2500);
             }
         }
+        config.pointLogin = totalPointLogin;
+        config.pointInfo = totalPointInfo;
+        // Cập nhật lại file config với điểm số mới
+        try {
+            fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), 'utf-8');
+            console.log('📄 Cập nhật file config với điểm số mới:', configFilePath);
+        }
+        catch (err) {
+            console.error('⚠️ Lỗi khi cập nhật file config:', err);
+        }
+        await sendMail(config);
         // Trả kết quả cuối cùng
         const result = {
             success: errors.length === 0,

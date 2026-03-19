@@ -25,28 +25,37 @@ export const ProjectsDashboardPage = () => {
   const [isDelPhone, setIsDelPhone] = useState(false);
   const [isChangeMail, setIsChangeMail] = useState(false);
   const [isChangePass, setIsChangePass] = useState(false);
-
   const [isGoogleAlert, setIsGoogleAlert] = useState(false);
   const [isVerifyEmail, setIsVerifyEmail] = useState(false);
   const [loginStatus, setLoginStatus] = useState<boolean>(false);
-  const [changeStatus, setChangeStatus] = useState<boolean>(false);
   const [errorStatus, setErrorStatus] = useState<boolean>(false);
   const [errorProxy, setErrorProxy] = useState<boolean>(false);
+  const [downCodeSuccess, setDownCodeSuccess] = useState<boolean>(false);
+  const [changePassSuccess, setChangePassSuccess] = useState<boolean>(false);
+  const [delPhoneSuccess, setDelPhoneSuccess] = useState<boolean>(false);
+  const [changeEmailSuccess, setChangeEmailSuccess] = useState<boolean>(false);
+  const [verifyEmailSuccess, setVerifyEmailSuccess] = useState<boolean>(false);
+  const [googleAlertSuccess, setGoogleAlertSuccess] = useState<boolean>(false);
   const [errorCaptcha, setErrorCaptcha] = useState<boolean>(false);
   const [searchText, setSearchText] = useState('');
   const [debouncedSearchText, setDebouncedSearchText] = useState('');
-  const [selectedProfileKeys, setSelectedProfileKeys] = useState<any[]>([]);
   const [rawProfiles, setRawProfiles] = useState<any[]>([]);
   const [dataProfiles, setDataProfiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedProfileKeys, setSelectedProfileKeys] = useState<any[]>([]);
 
   const { pathname } = useLocation();
   const resetFilters = () => {
     setLoginStatus(false);
-    setChangeStatus(false);
     setErrorStatus(false);
     setErrorProxy(false);
     setErrorCaptcha(false);
+    setDownCodeSuccess(false);
+    setChangePassSuccess(false);
+    setDelPhoneSuccess(false);
+    setChangeEmailSuccess(false);
+    setVerifyEmailSuccess(false);
+    setGoogleAlertSuccess(false);
     setSearchText('');
   };
 
@@ -55,10 +64,21 @@ export const ProjectsDashboardPage = () => {
       const keyword = (debouncedSearchText || '').trim().toLowerCase();
       return profiles.filter((p) => {
         const matchesLogin = !loginStatus || Boolean(p?.isLoginAction);
-        const matchesChange = !changeStatus || Boolean(p?.isChangeInfo);
         const matchesError = !errorStatus || Boolean(p?.isError);
         const matchesProxy = !errorProxy || Boolean(p?.isProxyErr);
         const matchesCaptcha = !errorCaptcha || Boolean(p?.isCaptchaErr);
+        const matchesDownCodeSuccess =
+          !downCodeSuccess || Boolean(p?.downCodeSuccess);
+        const matchesChangePassSuccess =
+          !changePassSuccess || Boolean(p?.changePassSuccess);
+        const matchesDelPhoneSuccess =
+          !delPhoneSuccess || Boolean(p?.delPhoneSuccess);
+        const matchesChangeEmailSuccess =
+          !changeEmailSuccess || Boolean(p?.changeEmailSuccess);
+        const matchesVerifyEmailSuccess =
+          !verifyEmailSuccess || Boolean(p?.verifyEmailSuccess);
+        const matchesGoogleAlertSuccess =
+          !googleAlertSuccess || Boolean(p?.googleAlertSuccess);
 
         const matchesSearch = !keyword
           ? true
@@ -67,20 +87,30 @@ export const ProjectsDashboardPage = () => {
 
         return (
           matchesLogin &&
-          matchesChange &&
           matchesError &&
           matchesProxy &&
           matchesCaptcha &&
+          matchesDownCodeSuccess &&
+          matchesChangePassSuccess &&
+          matchesDelPhoneSuccess &&
+          matchesChangeEmailSuccess &&
+          matchesVerifyEmailSuccess &&
+          matchesGoogleAlertSuccess &&
           matchesSearch
         );
       });
     },
     [
       loginStatus,
-      changeStatus,
       errorStatus,
       errorProxy,
       errorCaptcha,
+      downCodeSuccess,
+      changePassSuccess,
+      delPhoneSuccess,
+      changeEmailSuccess,
+      verifyEmailSuccess,
+      googleAlertSuccess,
       debouncedSearchText,
     ]
   );
@@ -222,8 +252,6 @@ export const ProjectsDashboardPage = () => {
           page: page,
           limit: size,
         });
-        console.log(response);
-
         // response có cấu trúc { data: {...}, error: {...} }
         if (response.error?.code !== 0) {
           message.error(
@@ -237,7 +265,7 @@ export const ProjectsDashboardPage = () => {
           : Array.isArray(response?.data)
             ? response.data
             : [];
-
+        console.log(profileArray);
         setRawProfiles(profileArray);
         setDataProfiles(filterProfiles(profileArray));
       } catch (error) {
@@ -368,13 +396,6 @@ export const ProjectsDashboardPage = () => {
                 Đã đăng nhập
               </Checkbox>
               <Checkbox
-                checked={changeStatus}
-                indeterminate={false}
-                onChange={(e) => setChangeStatus(e.target.checked)}
-              >
-                Đã thay đổi thông tin
-              </Checkbox>
-              <Checkbox
                 checked={errorStatus}
                 indeterminate={false}
                 onChange={(e) => setErrorStatus(e.target.checked)}
@@ -394,6 +415,48 @@ export const ProjectsDashboardPage = () => {
                 onChange={(e) => setErrorCaptcha(e.target.checked)}
               >
                 Lỗi robot
+              </Checkbox>
+              <Checkbox
+                checked={downCodeSuccess}
+                indeterminate={false}
+                onChange={(e) => setDownCodeSuccess(e.target.checked)}
+              >
+                Tải Backup Code lỗi
+              </Checkbox>
+              <Checkbox
+                checked={changePassSuccess}
+                indeterminate={false}
+                onChange={(e) => setChangePassSuccess(e.target.checked)}
+              >
+                Thay đổi mật khẩu lỗi
+              </Checkbox>
+              <Checkbox
+                checked={delPhoneSuccess}
+                indeterminate={false}
+                onChange={(e) => setDelPhoneSuccess(e.target.checked)}
+              >
+                Xoá số điện thoại lỗi
+              </Checkbox>
+              <Checkbox
+                checked={changeEmailSuccess}
+                indeterminate={false}
+                onChange={(e) => setChangeEmailSuccess(e.target.checked)}
+              >
+                Thay đổi email lỗi
+              </Checkbox>
+              <Checkbox
+                checked={verifyEmailSuccess}
+                indeterminate={false}
+                onChange={(e) => setVerifyEmailSuccess(e.target.checked)}
+              >
+                Verify Email lỗi
+              </Checkbox>
+              <Checkbox
+                checked={googleAlertSuccess}
+                indeterminate={false}
+                onChange={(e) => setGoogleAlertSuccess(e.target.checked)}
+              >
+                Google Alert lỗi
               </Checkbox>
               <Input
                 placeholder="Tìm kiếm theo tên / tài khoản"
