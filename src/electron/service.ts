@@ -1,6 +1,8 @@
 import { generate } from 'otplib';
 import { createCursor } from 'ghost-cursor';
 import { appendFileSync } from 'fs';
+import { ImapFlow } from 'imapflow';
+import { simpleParser } from 'mailparser';
 import axios from 'axios';
 declare const document: any;
 
@@ -1388,12 +1390,14 @@ export const handleAutoChangePassword = async (
       .catch(() => null);
 
     const forgotPasswordButton = await page
-      .waitForSelector('button[jsname="LgbsSe"]', {
-        visible: true,
-        timeout: 5000,
-      })
+      .waitForSelector(
+        'xpath/.//button[@jsname="LgbsSe"][.//span[contains(text(), "Forgot password?") or contains(text(), "Quên mật khẩu?")]]',
+        {
+          visible: true,
+          timeout: 5000,
+        }
+      )
       .catch(() => null);
-
     if (passwordInput && forgotPasswordButton) {
       try {
         await readingDelay(1000, 1800); // Đọc trước nhập
@@ -1469,8 +1473,8 @@ export const handleAutoChangePassword = async (
         }
       );
     }
-
-    const newPass = generateRandomPassword();
+    const idPass = profile?.name?.split('_')[1] || 'daisong6688us';
+    const newPass = 'daisong6688us' + idPass;
     console.log(`📝 Mật khẩu mới: ${newPass}`);
 
     try {
@@ -2124,6 +2128,385 @@ export const handleAutoGoogleAlert = async (page: any, profile: any) => {
     throw Object.assign(
       new Error(`handleAutoGoogleAlert thất bại: ${error.message}`),
       { errCode: error?.errCode || 'ELEMENT' }
+    );
+  }
+};
+
+const getCodeEmail = async (profile: any) => {
+  const targetGmail = profile.username;
+  const client = new ImapFlow({
+    host: 'hf60-22099.azdigihost.com',
+    port: 993,
+    secure: true,
+    auth: {
+      user: 'admin@trandaimkt.com',
+      pass: 'Dgfdfhgffd@1102',
+    },
+    logger: false,
+  });
+
+  await client.connect();
+  // 1. Lấy mốc thời gian hiện tại và mốc 10 phút trước
+  const now = new Date();
+  const tenMinutesAgo = new Date(now.getTime() - 20 * 60 * 1000);
+  // Mốc thời gian để Search (Lùi lại 1 ngày cho chắc chắn)
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const lock = await client.getMailboxLock('INBOX');
+  try {
+    // 2. Tìm email từ google gửi đến trong NGÀY HÔM NAY
+    // Điều này giúp thu hẹp phạm vi tìm kiếm để script chạy nhanh hơn
+    const messages: any = await client.search({
+      from: 'google.com',
+      subject: 'Email verification code',
+      since: yesterday, // Lọc các mail từ 00:00 ngày hôm nay
+      seen: false,
+    });
+
+    if (messages?.length === 0) return 'Không có email mới trong ngày.';
+
+    console.log(
+      messages,
+      '🔍 Số email từ google.com hôm nay:',
+      messages.length
+    );
+
+    // 3. Duyệt ngược để tìm email khớp cả 'targetGmail' và 'thời gian'
+    for (let i = messages.length - 1; i >= 0; i--) {
+      // Lấy thông tin sơ bộ (envelope và nội dung)
+      const message: any = await client.fetchOne(messages[i], {
+        source: true,
+        internalDate: true,
+      });
+
+      // Kiểm tra nếu email cũ hơn 10 phút thì dừng tìm kiếm (vì đã duyệt ngược)
+      if (message?.internalDate < tenMinutesAgo) {
+        break;
+      }
+
+      const parsed = await simpleParser(message?.source);
+      const content = parsed?.text || '';
+
+      // 4. Kiểm tra đúng tài khoản Gmail mục tiêu
+      if (content.includes(targetGmail)) {
+        console.log(content);
+        const codeMatch = content.match(/\b\d{6}\b/);
+        if (codeMatch) {
+          const result = {
+            email: targetGmail,
+            code: codeMatch[0],
+            receivedAt: message.internalDate,
+          };
+          return result;
+        }
+      }
+    }
+
+    return null;
+  } finally {
+    lock.release();
+    await client.logout();
+  }
+};
+
+export const handleVerifyEmail = async (page: any, profile: any) => {
+  if (!page || typeof page.goto !== 'function') {
+    throw Object.assign(
+      new Error('Invalid page object provided to handleAutoChangeEmail'),
+      { errCode: 'ELEMENT' }
+    );
+  }
+  if (!profile) {
+    throw Object.assign(
+      new Error('Profile is required for handleAutoChangeEmail'),
+      { errCode: 'DATA' }
+    );
+  }
+  if (!profile.username) {
+    throw Object.assign(new Error('profile.username is required'), {
+      errCode: 'DATA',
+    });
+  }
+
+  console.log(
+    `--- Bắt đầu quy trình thay đổi email khôi phục cho: ${profile.username} ---`
+  );
+
+  try {
+    try {
+      await gotoWithRetry(page, 'https://myaccount.google.com/security');
+    } catch (gotoError) {
+      const errorMsg = (gotoError as Error).message;
+      if (isNetworkError(gotoError as Error)) {
+        // Lỗi mạng - bỏ qua action này
+        console.warn(
+          `⚠️  Lỗi mạng khi navigate tới Security: ${errorMsg}. Bỏ qua thay đổi email.`
+        );
+        return;
+      }
+      // Lỗi khác - throw
+      throw Object.assign(
+        new Error(`Không thể navigate tới trang Security: ${errorMsg}`),
+        { errCode: 'NETWORK' }
+      );
+    }
+
+    await readingDelay(1500, 2500); // Đọc trang Security
+
+    // 2. Tìm thẻ <a> dẫn đến trang quản lý Email khôi phục
+    const recoveryEmailSelector = 'a[href*="recovery/email"]';
+    console.log('🔍 Đang tìm Recovery Email link...');
+    try {
+      await readingDelay(1000, 2000); // Tìm link trước khi click
+      await Promise.all([
+        smartClick(page, recoveryEmailSelector),
+        page.waitForNavigation({
+          waitUntil: 'networkidle2',
+          timeout: 60000,
+        }),
+      ]);
+    } catch (emailNavError) {
+      throw Object.assign(
+        new Error(
+          `Không thể navigate tới Recovery Email: ${
+            (emailNavError as Error).message
+          }`
+        ),
+        { errCode: 'NETWORK' }
+      );
+    }
+
+    await readingDelay(1500, 2500); // Đọc trang Recovery Email
+
+    // --- BƯỚC 1: KIỂM TRA MẬT KHẨU ---
+    console.log('🔑 Kiểm tra màn hình nhập mật khẩu...');
+    const passwordInput = await page
+      .waitForSelector('input[type="password"]', {
+        visible: true,
+        timeout: 5000,
+      })
+      .catch(() => null);
+
+    if (passwordInput) {
+      console.log('==> Phát hiện màn hình nhập mật khẩu.');
+      try {
+        await hesitation(0.3, 400, 900); // Do dự trước nhập password
+        await typeLikeHuman(page, 'input[type="password"]', profile.password);
+      } catch (typingError) {
+        throw Object.assign(
+          new Error(
+            `Không thể nhập password: ${(typingError as Error).message}`
+          ),
+          { errCode: 'ELEMENT' }
+        );
+      }
+
+      try {
+        await longDelay(400, 1200); // Chờ trước press Enter
+        await Promise.all([
+          page.keyboard.press('Enter'),
+          page.waitForNavigation({
+            waitUntil: 'networkidle2',
+            timeout: 30000,
+          }),
+        ]);
+      } catch (navError) {
+        throw Object.assign(
+          new Error(
+            `Navigation sau password thất bại: ${(navError as Error).message}`
+          ),
+          { errCode: 'NETWORK' }
+        );
+      }
+      await readingDelay(1500, 2500); // Đọc trang tiếp theo trước 2FA
+    }
+
+    // --- BƯỚC 2: KIỂM TRA 2FA ---
+    console.log('🔒 Kiểm tra 2FA...');
+
+    const has2FA = await typing2FA(page, profile);
+    if (has2FA) {
+      console.log('✅ Đã hoàn thành đăng nhập với 2FA');
+    } else {
+      console.log('✅ Đã hoàn thành đăng nhập (không có 2FA)');
+    }
+
+    try {
+      await page.waitForFunction(
+        () => {
+          const editBtn = document.querySelector(
+            'button[aria-label*="Verify recovery email"]'
+          );
+          return editBtn && (editBtn as any).offsetWidth > 0;
+        },
+        { timeout: 15000 }
+      );
+    } catch (editBtnError) {
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy nút Edit recovery email: ${
+            (editBtnError as Error).message
+          }`
+        ),
+        { errCode: 'ELEMENT' }
+      );
+    }
+
+    await hesitation(0.35, 300, 700);
+    const editClicked = await page.evaluate(() => {
+      const editBtn = document.querySelector(
+        'button[aria-label*="Verify recovery email"]'
+      ) as any;
+      if (editBtn) {
+        editBtn.click();
+        return true;
+      }
+      return false;
+    });
+
+    if (!editClicked) {
+      throw Object.assign(
+        new Error('Không thể click nút Verify recovery email'),
+        { errCode: 'ELEMENT' }
+      );
+    }
+    console.log('✅ Đã click vào nút Verify Email.');
+
+    await readingDelay(1000, 1800); // Đợi dialog/input hiển thị + đọc
+
+    // Đợi màn hình nhập Email mới hiện ra
+    const codelInputSelector = 'input[type="text"][jsname="YPqjbf"]';
+
+    try {
+      await page.waitForFunction(
+        (selector: string) => {
+          const input = document.querySelector(selector) as any;
+          return input && input.offsetWidth > 0;
+        },
+        { timeout: 15000 },
+        codelInputSelector
+      );
+    } catch (emailInputError) {
+      throw Object.assign(
+        new Error(
+          `Không tìm thấy input email: ${(emailInputError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
+      );
+    }
+
+    // Focus và xóa sạch ô input
+    try {
+      await hesitation(0.3, 300, 700); // Do dự trước khi clear
+      await page.focus(codelInputSelector);
+      await smartClick(page, codelInputSelector);
+      await delay(2000);
+    } catch (focusError) {
+      throw Object.assign(
+        new Error(
+          `Không thể focus/clear email input: ${(focusError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
+      );
+    }
+    // Chờ 60s (60000ms) rồi lấy mã email
+    let codeEmail: any = null;
+    console.log('Bắt đầu thực hiện lấy mã !');
+    await new Promise((resolve) => {
+      setTimeout(async () => {
+        console.log(
+          '⏰ Đã chờ 60s để nhận mã email. Nếu không nhận được, có thể do email chưa đến hoặc đã bị lọc vào spam.'
+        );
+        codeEmail = await getCodeEmail(profile);
+        resolve(null);
+      }, 60000);
+    });
+
+    if (!codeEmail) {
+      throw Object.assign(
+        new Error(
+          `Lấy mã Verify Email thất bại: Không nhận được email mới trong 1 phút`
+        ),
+        { errCode: 'SYSTEM' }
+      );
+    } else {
+      console.log(`✅ Mã email đã nhận: ${codeEmail.code}`);
+    }
+    try {
+      await hesitation(0.35, 400, 900);
+      await typeLikeHuman(page, codelInputSelector, codeEmail.code);
+    } catch (typingError) {
+      throw Object.assign(
+        new Error(
+          `Không thể nhập email mới: ${(typingError as Error).message}`
+        ),
+        { errCode: 'ELEMENT' }
+      );
+    }
+
+    const verifyBtn = 'button[aria-label="Verify your recovery email"]';
+
+    // Click vào nút Save
+    console.log('💾 Đang click nút Verify...');
+    await readingDelay(800, 1500); // Đọc email vừa nhập trước save
+    await hesitation(0.35, 300, 700); // Do dự trước click save
+    const saveClicked = await page.evaluate((sel: any) => {
+      const btn = document.querySelector(sel) as any;
+      if (btn) {
+        btn.click();
+        return true;
+      }
+      return false;
+    }, verifyBtn);
+
+    if (!saveClicked) {
+      throw Object.assign(new Error('Không tìm thấy nút Verify để click'), {
+        errCode: 'ELEMENT',
+      });
+    }
+
+    console.log('✅ Đã click nút Verify thành công.');
+
+    await readingDelay(2000, 3000); // Đợi server xử lý và UI cập nhật
+
+    // Selector cho thông báo lỗi dựa trên jsname hoặc nội dung text
+    const errorSelector = '[jsname="xl1FBb"], #c1-help-text-id';
+
+    const isWrongCode = await page.evaluate((sel: any) => {
+      const errorElement = document.querySelector(sel);
+      if (!errorElement) return false;
+
+      // Kiểm tra xem element có hiển thị thực tế không
+      const style = (globalThis as any).window?.getComputedStyle(errorElement);
+      const isVisible =
+        style.display !== 'none' && style.visibility !== 'hidden';
+
+      // Kiểm tra nội dung text để chắc chắn là lỗi "Wrong code"
+      const text = errorElement.innerText || '';
+      const hasErrorText =
+        text.includes('isn’t the right code') ||
+        text.includes('không chính xác');
+
+      return isVisible && hasErrorText;
+    }, errorSelector);
+
+    if (isWrongCode) {
+      console.error('❌ Google báo: Mã xác nhận không chính xác.');
+
+      // Bạn có thể chọn throw lỗi hoặc thực hiện logic lấy lại mã mới
+      throw Object.assign(
+        new Error('Mã xác nhận OTP không chính xác hoặc đã hết hạn'),
+        {
+          errCode: 'INVALID_OTP',
+        }
+      );
+    }
+
+    // Nếu không thấy lỗi, kiểm tra xem có chuyển trang thành công không
+    console.log('🎉 Không phát hiện lỗi. Có vẻ mã đã được chấp nhận!');
+  } catch (error: any) {
+    throw Object.assign(
+      new Error(`handleAutoVerifyEmail thất bại: ${(error as Error).message}`),
+      { errCode: error?.errCode }
     );
   }
 };

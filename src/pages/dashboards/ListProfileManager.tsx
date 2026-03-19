@@ -5,11 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   PieChartOutlined,
   LoginOutlined,
-  EditOutlined,
   PlayCircleOutlined,
   SyncOutlined,
   AlertOutlined,
   FileProtectOutlined,
+  CodeOutlined,
+  PhoneOutlined,
+  MailOutlined,
+  HighlightOutlined,
 } from '@ant-design/icons';
 import { DASHBOARD_ITEMS } from '../../constants';
 import { Link, useLocation } from 'react-router-dom';
@@ -18,7 +21,11 @@ import { Helmet } from 'react-helmet-async';
 export const ProjectsDashboardPage = () => {
   const [projectTabsKey, setProjectsTabKey] = useState<string>('all');
   const [isLoginAction, setIsLogin] = useState(false);
-  const [isChangeInfo, setIsChangeInfo] = useState(false);
+  const [isDownCode, setIsDownCode] = useState(false);
+  const [isDelPhone, setIsDelPhone] = useState(false);
+  const [isChangeMail, setIsChangeMail] = useState(false);
+  const [isChangePass, setIsChangePass] = useState(false);
+
   const [isGoogleAlert, setIsGoogleAlert] = useState(false);
   const [isVerifyEmail, setIsVerifyEmail] = useState(false);
   const [loginStatus, setLoginStatus] = useState<boolean>(false);
@@ -100,20 +107,13 @@ export const ProjectsDashboardPage = () => {
     if (isLoginAction) {
       // tắt login thì cũng tắt luôn change info
       setIsLogin(false);
-      setIsChangeInfo(false);
       setIsGoogleAlert(false);
       setIsVerifyEmail(false);
+      setIsDownCode(false);
+      setIsDelPhone(false);
+      setIsChangeMail(false);
+      setIsChangePass(false);
     } else {
-      setIsLogin(true);
-    }
-  };
-
-  const toggleChangeInfo = () => {
-    if (isChangeInfo) {
-      setIsChangeInfo(false);
-    } else {
-      // bật change info thì auto bật login
-      setIsChangeInfo(true);
       setIsLogin(true);
     }
   };
@@ -138,19 +138,66 @@ export const ProjectsDashboardPage = () => {
     }
   };
 
+  const toggleDownCode = () => {
+    if (isDownCode) {
+      setIsDownCode(false);
+    } else {
+      setIsDownCode(true);
+      setIsLogin(true);
+    }
+  };
+
+  const toggleChangePhone = () => {
+    if (isDelPhone) {
+      setIsDelPhone(false);
+    } else {
+      setIsDelPhone(true);
+      setIsLogin(true);
+    }
+  };
+
+  const toggleChangeMail = () => {
+    if (isChangeMail) {
+      setIsChangeMail(false);
+    } else {
+      setIsChangeMail(true);
+      setIsLogin(true);
+    }
+  };
+
+  const toggleChangePass = () => {
+    if (isChangePass) {
+      setIsChangePass(false);
+    } else {
+      setIsChangePass(true);
+      setIsLogin(true);
+    }
+  };
+
   const onProjectsTabChange = (key: string) => {
     setProjectsTabKey(key);
   };
 
   const handleRunProfiles = async () => {
     try {
-      if (!isLoginAction && !isChangeInfo) {
+      if (
+        !isLoginAction &&
+        !isDownCode &&
+        !isDelPhone &&
+        !isChangeMail &&
+        !isChangePass &&
+        !isGoogleAlert &&
+        !isVerifyEmail
+      ) {
         message.warning('Vui lòng chọn chức năng trước khi khởi chạy.');
         return;
       }
       const payload = {
         isAutoLogin: isLoginAction,
-        isAutoChange: isChangeInfo,
+        isDownCode: isDownCode,
+        isDelPhone: isDelPhone,
+        isChangeMail: isChangeMail,
+        isChangePass: isChangePass,
         isGoogleAlert: isGoogleAlert,
         isVerifyEmail: isVerifyEmail,
         profileIds: selectedProfileKeys,
@@ -263,26 +310,48 @@ export const ProjectsDashboardPage = () => {
               </Button>
 
               <Button
-                type={isChangeInfo ? 'primary' : 'default'}
-                icon={<EditOutlined />}
-                onClick={toggleChangeInfo}
+                type={isDownCode ? 'primary' : 'default'}
+                icon={<CodeOutlined />}
+                onClick={toggleDownCode}
               >
-                Đổi thông tin
+                Tải BackUp Code
+              </Button>
+              <Button
+                type={isDelPhone ? 'primary' : 'default'}
+                icon={<PhoneOutlined />}
+                onClick={toggleChangePhone}
+              >
+                Xoá số điện thoại
+              </Button>
+              <Button
+                type={isChangeMail ? 'primary' : 'default'}
+                icon={<MailOutlined />}
+                onClick={toggleChangeMail}
+              >
+                Thay đổi email
               </Button>
 
               <Button
-                type={isGoogleAlert ? 'primary' : 'default'}
-                icon={<AlertOutlined />}
-                onClick={toggleGoogleAlert}
+                type={isChangePass ? 'primary' : 'default'}
+                icon={<HighlightOutlined />}
+                onClick={toggleChangePass}
               >
-                Google Alert
+                Thay đổi mật khẩu
               </Button>
+
               <Button
                 type={isVerifyEmail ? 'primary' : 'default'}
                 icon={<FileProtectOutlined />}
                 onClick={toggleVerifyEmail}
               >
                 Verify Email
+              </Button>
+              <Button
+                type={isGoogleAlert ? 'primary' : 'default'}
+                icon={<AlertOutlined />}
+                onClick={toggleGoogleAlert}
+              >
+                Google Alert
               </Button>
             </Space>
           </Card>

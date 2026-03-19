@@ -37,7 +37,7 @@ export const ProjectsTable = ({
       dataIndex: 'password',
       key: 'password',
       width: 80,
-      render: (_: any) => <span className="text-capitalize">{_}</span>,
+      render: (_: any) => <span>{_}</span>,
     },
     {
       title: 'Mật khẩu mới',

@@ -12,6 +12,7 @@ import {
   handleAutoChangePassword,
   handleDownloadBackUpCode,
   handleAutoGoogleAlert,
+  handleVerifyEmail,
   gotoWithRetry,
   delay,
 } from './service.js';
@@ -419,8 +420,6 @@ ipcMain.handle('launch-profile', async (_event, data) => {
           markCache();
           continue;
         }
-
-        console.log(openRes, 'Phản hồi mở profile từ ixBrowser API');
         if (openRes?.data?.error?.code === 0) {
           const debugUrl = openRes.data?.data?.debugging_address;
           if (!debugUrl) {
@@ -448,16 +447,12 @@ ipcMain.handle('launch-profile', async (_event, data) => {
 
           const pages = await browser.pages();
           const page = pages.length > 0 ? pages[0] : await browser.newPage();
-
-          console.log(profile);
           console.log(
             `📍 Đang điều hướng profile ${profile.name} tới Gmail...`
           );
 
           // Thao tác tự động
           await gotoWithRetry(page, 'https://accounts.google.com/');
-
-          console.log(data, 'Dữ liệu nhận từ Renderer');
 
           // ĐĂNG NHẬP
           if (data.isAutoLogin) {
@@ -488,9 +483,10 @@ ipcMain.handle('launch-profile', async (_event, data) => {
           }
 
           // THAY ĐỔI THÔNG TIN
-          if (data.isAutoChange) {
+
+          //Tải backup code
+          if (data.isDownCode) {
             changeSuccess = true;
-            //Tải backup code
             try {
               await handleDownloadBackUpCode(page, profile);
               console.log(`✅ Tải backup code thành công cho: ${profile.name}`);
@@ -515,7 +511,11 @@ ipcMain.handle('launch-profile', async (_event, data) => {
               });
               markErrFlags(errCode);
             }
-            // // XOÁ SỐ ĐIỆN THOẠI
+          }
+
+          // XOÁ SỐ ĐIỆN THOẠI
+          if (data.isDelPhone) {
+            changeSuccess = true;
             try {
               await handleAutoChangePhone(page, profile);
               console.log(
@@ -542,7 +542,11 @@ ipcMain.handle('launch-profile', async (_event, data) => {
               });
               markErrFlags(errCode);
             }
-            // // THAY ĐỔI EMAIL
+          }
+
+          // THAY ĐỔI EMAIL
+          if (data.isChangeMail) {
+            changeSuccess = true;
             try {
               await handleAutoChangeEmail(page, profile);
               console.log(`✅ Thay đổi email thành công cho: ${profile.name}`);
@@ -567,6 +571,11 @@ ipcMain.handle('launch-profile', async (_event, data) => {
               });
               markErrFlags(errCode);
             }
+          }
+
+          // THAY ĐỔI MẬT KHẨU
+          if (data.isChangePass) {
+            changeSuccess = true;
             // THAY ĐỔI MẬT KHẨU
             try {
               await handleAutoChangePassword(page, profile);
@@ -588,6 +597,36 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                 profileId: profile.profile_id,
                 profileName: profile.name,
                 action: 'handleAutoChangePassword',
+                error: errorMsg,
+                errCode,
+                timestamp: new Date().toISOString(),
+              });
+              markErrFlags(errCode);
+            }
+          }
+
+          if (data.isVerifyEmail) {
+            try {
+              await handleVerifyEmail(page, profile);
+              console.log(
+                `✅ Kiểm tra Verify Email thành công cho: ${profile.name}`
+              );
+            } catch (verifyError: any) {
+              const errorMsg =
+                verifyError.message ||
+                'Lỗi kiểm tra Verify Email không xác định';
+              console.error(
+                `❌ Lỗi kiểm tra Verify Email cho ${profile.name}:`,
+                errorMsg
+              );
+              const errCode = verifyError?.errCode || 'VERIFY_EMAIL_FAILED';
+              changeSuccess = false;
+              profileHadError = true;
+              firstErrorMsg = firstErrorMsg || errorMsg;
+              errors.push({
+                profileId: profile.profile_id,
+                profileName: profile.name,
+                action: 'handleVerifyEmail',
                 error: errorMsg,
                 errCode,
                 timestamp: new Date().toISOString(),
@@ -625,7 +664,6 @@ ipcMain.handle('launch-profile', async (_event, data) => {
               markErrFlags(errCode);
             }
           }
-
           // Cập nhật cache sau khi hoàn tất profile (trường hợp thành công)
           markCache();
           console.log(`✅ Hoàn tất thao tác cho profile: ${profile.name}`);
