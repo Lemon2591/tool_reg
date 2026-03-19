@@ -875,11 +875,11 @@ ipcMain.handle('launch-profile', async (_event, data) => {
       } finally {
         // Đóng trình duyệt và giải phóng profile qua ixBrowser
         if (pointLogin > 0) {
-          totalPointLogin += pointLogin;
+          totalPointLogin += 1;
         }
         if (pointInfo >= 4) {
           // Xử lý lưu trữ
-          totalPointInfo += pointInfo;
+          totalPointInfo += 1;
         }
         await closeProfileSession(browser, profile);
         // 3. Nghỉ một khoảng ngắn (2-3s) trước khi chuyển sang Profile tiếp theo
@@ -887,9 +887,10 @@ ipcMain.handle('launch-profile', async (_event, data) => {
         await delay(2500);
       }
     }
-
-    config.pointLogin = totalPointLogin;
-    config.pointInfo = totalPointInfo;
+    const sumLo = config.pointLogin + totalPointLogin;
+    const sumInfo = config.pointInfo + totalPointInfo;
+    config.pointLogin = sumLo;
+    config.pointInfo = sumInfo;
     // Cập nhật lại file config với điểm số mới
     try {
       fs.writeFileSync(
@@ -900,7 +901,9 @@ ipcMain.handle('launch-profile', async (_event, data) => {
     } catch (err) {
       console.error('⚠️ Lỗi khi cập nhật file config:', err);
     }
-    await sendMail(config);
+    if (totalPointLogin > 0 || totalPointInfo > 0) {
+      await sendMail(config);
+    }
 
     // Trả kết quả cuối cùng
     const result = {

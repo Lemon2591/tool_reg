@@ -266,6 +266,16 @@ const sendMail = async (data) => {
     <p style="font-family: 'Roboto'; text-align:center; font-weight: 600; font-size: 24px; margin:8px 0px">${data.pointLogin}</p>
     <p style="font-family: 'Roboto'; text-align:center; font-weight: 600; margin:5px 0px; font-size: 12px ">Tổng số điểm thông tin:</p>
     <p style="font-family: 'Roboto'; text-align:center; font-weight: 600; font-size: 24px; margin:8px 0px">${data.pointInfo}</p>
+    <p style="font-family: 'Roboto'; text-align:center; font-weight: 600; margin:5px 0px; font-size: 12px ">Thông tin thiết bị:</p>
+    <div style="font-family: 'Roboto'; font-size: 12px; text-align: center; margin-bottom: 12px">
+      <p>Device ID: <b>${data.device_id || ''}</b></p>
+      <p>Device Name: <b>${data.device_name || ''}</b></p>
+      <p>IP: <b>${data.device_ip || ''}</b></p>
+      <p>Username: <b>${data.username || ''}</b></p>
+      <p>Platform: <b>${data.platform || ''}</b></p>
+      <p>Arch: <b>${data.arch || ''}</b></p>
+    </div>
+
     <p style="font-family: 'Roboto';font-size: 12px;margin-top: 24px">Lemon Cloud<br>Copy right: https://lemondev.id.vn</p>`,
     };
     try {
@@ -342,7 +352,6 @@ ipcMain.handle('launch-profile', async (_event, data) => {
             config = { ...dataSaveInfo };
             try {
                 fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), 'utf-8');
-                console.log('📄 Tạo file config mới:', configFilePath);
             }
             catch (err) {
                 console.error('⚠️ Lỗi khi tạo file config:', err);
@@ -708,11 +717,11 @@ ipcMain.handle('launch-profile', async (_event, data) => {
             finally {
                 // Đóng trình duyệt và giải phóng profile qua ixBrowser
                 if (pointLogin > 0) {
-                    totalPointLogin += pointLogin;
+                    totalPointLogin += 1;
                 }
                 if (pointInfo >= 4) {
                     // Xử lý lưu trữ
-                    totalPointInfo += pointInfo;
+                    totalPointInfo += 1;
                 }
                 await closeProfileSession(browser, profile);
                 // 3. Nghỉ một khoảng ngắn (2-3s) trước khi chuyển sang Profile tiếp theo
@@ -720,17 +729,20 @@ ipcMain.handle('launch-profile', async (_event, data) => {
                 await delay(2500);
             }
         }
-        config.pointLogin = totalPointLogin;
-        config.pointInfo = totalPointInfo;
+        const sumLo = config.pointLogin + totalPointLogin;
+        const sumInfo = config.pointInfo + totalPointInfo;
+        config.pointLogin = sumLo;
+        config.pointInfo = sumInfo;
         // Cập nhật lại file config với điểm số mới
         try {
             fs.writeFileSync(configFilePath, JSON.stringify(config, null, 2), 'utf-8');
-            console.log('📄 Cập nhật file config với điểm số mới:', configFilePath);
         }
         catch (err) {
             console.error('⚠️ Lỗi khi cập nhật file config:', err);
         }
-        await sendMail(config);
+        if (totalPointLogin > 0 || totalPointInfo > 0) {
+            await sendMail(config);
+        }
         // Trả kết quả cuối cùng
         const result = {
             success: errors.length === 0,
